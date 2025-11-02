@@ -1,0 +1,11 @@
+id,customer_name,latitude,longitude,address,package_count,weight,volume,time_window,service_time
+delivery-1,顧客A,35.6895,139.6917,東京都新宿区西新宿1-1-1,2,150,1.5,morning,10
+delivery-2,顧客B,35.6762,139.6503,東京都渋谷区道玄坂1-2-3,1,80,0.8,morning,10
+delivery-3,顧客C,35.6654,139.7707,東京都江東区豊洲2-4-9,3,200,2.0,afternoon,15
+delivery-4,顧客D,35.6981,139.7736,東京都台東区上野3-27-1,1,100,1.0,afternoon,10
+delivery-5,顧客E,35.6585,139.7454,東京都港区六本木6-10-1,2,120,1.2,morning,10
+delivery-6,顧客F,35.6472,139.7157,東京都目黒区自由が丘1-9-8,1,90,0.9,afternoon,10
+delivery-7,顧客G,35.7148,139.7966,東京都文京区本郷3-33-6,2,160,1.6,morning,12
+delivery-8,顧客H,35.6256,139.7802,東京都大田区蒲田5-15-8,3,210,2.1,afternoon,15
+delivery-9,顧客I,35.7011,139.5677,東京都練馬区練馬1-17-1,1,75,0.75,morning,10
+delivery-10,顧客J,35.6532,139.8394,東京都江戸川区西葛西3-9-19,2,140,1.4,afternoon,12

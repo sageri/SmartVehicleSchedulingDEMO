@@ -1,0 +1,11 @@
+id,vehicle_type,capacity_weight,capacity_volume,depot_id,available_start_time,available_end_time,cost_per_km,cost_per_hour
+vehicle-1,2t,2000,10.0,depot-1,08:00,18:00,50,3000
+vehicle-2,2t,2000,10.0,depot-1,08:00,18:00,50,3000
+vehicle-3,2t,2000,10.0,depot-2,08:00,18:00,50,3000
+vehicle-4,2t,2000,10.0,depot-2,08:00,18:00,50,3000
+vehicle-5,2t,2000,10.0,depot-3,08:00,18:00,50,3000
+vehicle-6,4t,4000,20.0,depot-3,08:00,18:00,80,4000
+vehicle-7,4t,4000,20.0,depot-4,08:00,18:00,80,4000
+vehicle-8,4t,4000,20.0,depot-4,08:00,18:00,80,4000
+vehicle-9,4t,4000,20.0,depot-1,08:00,18:00,80,4000
+vehicle-10,4t,4000,20.0,depot-2,08:00,18:00,80,4000

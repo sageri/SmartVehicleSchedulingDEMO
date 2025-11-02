@@ -1,0 +1,49 @@
+(venv) PS C:\CS\PY\VBA\backend> cd C:\CS\PY\VBA\frontend
+(venv) PS C:\CS\PY\VBA\frontend>  npx tsc --noEmit
+src/App.tsx:1:1 - error TS6133: 'React' is declared but its value is never read.
+
+1 import React from 'react'
+  ~~~~~~~~~~~~~~~~~~~~~~~~~
+
+src/test-import.ts:1:19 - error TS6133: 'Depot' is declared but its value is never read.
+
+1 import { Vehicle, Depot, Delivery } from '@shared/types'
+                    ~~~~~
+
+src/test-import.ts:1:26 - error TS6133: 'Delivery' is declared but its value is never read.
+
+1 import { Vehicle, Depot, Delivery } from '@shared/types'
+                           ~~~~~~~~
+
+
+Found 3 errors in 2 files.
+
+Errors  Files
+     1  src/App.tsx:1
+     2  src/test-import.ts:1
+(venv) PS C:\CS\PY\VBA\frontend> npm run lint
+
+> ai-vehicle-routing-frontend@1.0.0 lint
+> eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0
+
+=============
+
+WARNING: You are currently running a version of TypeScript which is not officially supported by @typescript-eslint/typescript-estree.
+
+You may find that it works just fine, or you may not.
+
+SUPPORTED TYPESCRIPT VERSIONS: >=4.3.5 <5.4.0
+
+YOUR TYPESCRIPT VERSION: 5.9.3
+
+Please only submit bug reports when using the officially supported version.
+
+=============
+
+C:\CS\PY\VBA\frontend\src\test-import.ts
+  1:19  error  'Depot' is defined but never used     @typescript-eslint/no-unused-vars
+  1:26  error  'Delivery' is defined but never used  @typescript-eslint/no-unused-vars
+
+✖ 2 problems (2 errors, 0 warnings)
+
+(venv) PS C:\CS\PY\VBA\frontend>

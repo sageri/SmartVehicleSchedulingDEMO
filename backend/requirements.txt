@@ -1,0 +1,31 @@
+# AI自動配車システムデモプロトタイプ - バックエンド依存関係
+
+# Web Framework
+fastapi==0.109.0
+uvicorn[standard]==0.25.0
+python-multipart==0.0.6
+
+# Data Validation & Serialization
+pydantic==2.5.3
+pydantic-settings==2.1.0
+
+# Database
+sqlalchemy==2.0.25
+alembic==1.13.1
+
+# Optimization Engine
+ortools==9.8.3296
+
+# Scientific Computing
+numpy==1.26.3
+
+# Utilities
+python-dotenv==1.0.0
+
+# Development & Testing
+pytest==7.4.4
+pytest-asyncio==0.23.3
+pytest-cov==4.1.0
+black==23.12.1
+ruff==0.1.11
+httpx==0.26.0  # For testing FastAPI endpoints
