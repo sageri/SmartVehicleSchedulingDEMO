@@ -38,7 +38,7 @@ class Settings(BaseSettings):
     ]
 
     # VRP最適化設定
-    VRP_TIME_LIMIT_SECONDS: int = 10  # 最適化計算の最大時間（秒）
+    VRP_TIME_LIMIT_SECONDS: int = 30  # 最適化計算の最大時間（秒）- Demo用に30秒
     VRP_SOLUTION_LIMIT: int = 1000    # 解探索の最大数
 
     # デモデータ設定
