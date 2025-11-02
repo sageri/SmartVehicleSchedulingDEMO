@@ -266,8 +266,8 @@ export const ROUTE_COLORS = [
  * マーカー色定義
  */
 export const MARKER_COLORS = {
-  depot: '#1890ff',           // 青（Ant Design Primary）
-  'delivery-morning': '#ff4d4f',   // 赤
-  'delivery-afternoon': '#ff7a45', // オレンジ
-  'delivery-anytime': '#52c41a',   // 緑
+  depot: '#1890ff',                // 青（Ant Design Primary）
+  'delivery-morning': '#ff4d4f',   // 赤（午前指定）
+  'delivery-afternoon': '#fadb14', // 黄色（午後指定・視認性向上）
+  'delivery-anytime': '#52c41a',   // 緑（時間指定なし）
 } as const;

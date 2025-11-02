@@ -18,7 +18,7 @@ const getMarkerColor = (timeWindow: 'morning' | 'afternoon' | null): string => {
     case 'morning':
       return '#ff4d4f'; // 赤
     case 'afternoon':
-      return '#ff7a45'; // オレンジ
+      return '#fadb14'; // 黄色（視認性向上）
     default:
       return '#52c41a'; // 緑
   }
