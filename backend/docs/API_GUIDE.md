@@ -38,6 +38,10 @@ curl -X POST http://localhost:8000/api/v1/seed/demo-data
 }
 ```
 
+**注:** デモデータは複数車両を使用する最適化を実現するように設計されています。
+- 配送先20件、総重量 約5315kg（単一車両容量4000kgを超える）
+- これにより、OR-Toolsが2-3台の車両を使用する最適解を生成します。
+
 ---
 
 ### 2. GET /api/v1/depots
@@ -149,9 +153,9 @@ curl "http://localhost:8000/api/v1/deliveries?time_window=afternoon"
       "latitude": 35.6895,
       "longitude": 139.6917,
       "address": "東京都新宿区西新宿2-8-1",
-      "package_count": 2,
-      "weight": 150.0,
-      "volume": 0.5,
+      "package_count": 3,
+      "weight": 280.0,
+      "volume": 0.9,
       "time_window": "morning",
       "service_time": 15
     }
@@ -159,6 +163,10 @@ curl "http://localhost:8000/api/v1/deliveries?time_window=afternoon"
   "total": 20
 }
 ```
+
+**注:** デモデータの重量・体積は最適化アルゴリズムが複数車両を使用するように調整されています。
+- 総重量: 約 5315kg（単一車両容量 4000kg を超える）
+- これにより、OR-Tools が 2-3 台の車両を使用する最適解を生成します。
 
 ---
 
