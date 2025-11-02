@@ -395,9 +395,10 @@ class VRPService:
                     duration_from_prev = data["time_matrix"][prev_node][node]  # 分
 
                     # 到着・出発時刻
+                    # CumulVar(index) は離開時間（travel_time + service_time）
                     time_var = time_dimension.CumulVar(index)
-                    arrival_minutes = solution.Min(time_var)
-                    departure_minutes = solution.Min(time_var) + delivery.service_time
+                    departure_minutes = solution.Min(time_var)
+                    arrival_minutes = departure_minutes - delivery.service_time
 
                     # ISO 8601形式の時刻に変換（簡易実装）
                     base_time = datetime.now(timezone.utc).replace(
