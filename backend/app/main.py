@@ -7,6 +7,7 @@ AI自動配車システムデモプロトタイプ - FastAPI メインアプリ�
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
+from app.api.v1 import api_router
 
 # FastAPIアプリケーションインスタンス作成
 app = FastAPI(
@@ -48,12 +49,8 @@ async def health_check():
     return {"status": "healthy"}
 
 
-# 将来のAPI v1エンドポイントをここにインクルード
-# from app.api.v1 import depots, vehicles, deliveries, optimization
-# app.include_router(depots.router, prefix="/api/v1", tags=["depots"])
-# app.include_router(vehicles.router, prefix="/api/v1", tags=["vehicles"])
-# app.include_router(deliveries.router, prefix="/api/v1", tags=["deliveries"])
-# app.include_router(optimization.router, prefix="/api/v1", tags=["optimization"])
+# API v1エンドポイントを登録
+app.include_router(api_router, prefix="/api/v1")
 
 
 if __name__ == "__main__":
