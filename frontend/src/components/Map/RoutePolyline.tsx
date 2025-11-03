@@ -56,14 +56,14 @@ const createArrowIcon = (color: string, angle: number) => {
         transform: rotate(${angle}deg);
         pointer-events: none;
       ">
-        <svg width="20" height="20" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-          <path d="M10 0 L15 10 L10 8 L5 10 Z" fill="${color}" stroke="white" stroke-width="1"/>
+        <svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+          <path d="M16 2 L24 16 L16 13 L8 16 Z" fill="${color}" stroke="white" stroke-width="1.5"/>
         </svg>
       </div>
     `,
     className: 'route-arrow-icon',
-    iconSize: [20, 20],
-    iconAnchor: [10, 10],
+    iconSize: [32, 32],
+    iconAnchor: [16, 16],
   });
 };
 
