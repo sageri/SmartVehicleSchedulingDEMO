@@ -170,6 +170,47 @@
        return deliveries
    ```
 
+2. **Haversine逆変換関数（目的地座標計算）**
+   ```python
+   def calculate_destination_point(
+       lat: float, lon: float, distance_km: float, bearing_rad: float
+   ) -> Tuple[float, float]:
+       """
+       Haversine逆変換: 出発点・距離・方位から目的地座標を計算
+
+       Args:
+           lat: 出発点の緯度（度）
+           lon: 出発点の経度（度）
+           distance_km: 移動距離（km）
+           bearing_rad: 方位角（ラジアン、0=北）
+
+       Returns:
+           Tuple[float, float]: 目的地の(緯度, 経度)
+
+       Reference:
+           https://www.movable-type.co.uk/scripts/latlong.html
+       """
+       import math
+
+       EARTH_RADIUS_KM = 6371.0
+       lat_rad = math.radians(lat)
+       lon_rad = math.radians(lon)
+
+       angular_distance = distance_km / EARTH_RADIUS_KM
+
+       dest_lat_rad = math.asin(
+           math.sin(lat_rad) * math.cos(angular_distance) +
+           math.cos(lat_rad) * math.sin(angular_distance) * math.cos(bearing_rad)
+       )
+
+       dest_lon_rad = lon_rad + math.atan2(
+           math.sin(bearing_rad) * math.sin(angular_distance) * math.cos(lat_rad),
+           math.cos(angular_distance) - math.sin(lat_rad) * math.sin(dest_lat_rad)
+       )
+
+       return math.degrees(dest_lat_rad), math.degrees(dest_lon_rad)
+   ```
+
 3. **データバリデーション関数**
    ```python
    def validate_data_distribution(
@@ -182,15 +223,88 @@
        Returns:
            Dict: バリデーション結果
                - depot_distances_valid: bool
+               - max_depot_distance_km: float
                - delivery_distances_valid: bool
                - package_distribution: dict
                - time_window_distribution: dict
        """
-       # 拠点間距離の検証
-       # 配送先の分布検証
-       # 伝票枚数分布の検証
-       # 時間指定分布の検証
-       pass
+       # 1. 拠点間距離の検証（全て20km圏内か？）
+       max_depot_distance = 0.0
+       for i, depot_a in enumerate(depots):
+           for depot_b in depots[i+1:]:
+               dist = calculate_haversine_distance(
+                   depot_a.latitude, depot_a.longitude,
+                   depot_b.latitude, depot_b.longitude
+               )
+               max_depot_distance = max(max_depot_distance, dist)
+
+       depot_distances_valid = max_depot_distance <= 20.0
+
+       # 2. 配送先の分布検証（各拠点から50km圏内か？）
+       delivery_distances_valid = True
+       for delivery in deliveries:
+           depot = next(d for d in depots if d.id == delivery.depot_id)
+           dist = calculate_haversine_distance(
+               depot.latitude, depot.longitude,
+               delivery.latitude, delivery.longitude
+           )
+           if dist > 50.0:
+               delivery_distances_valid = False
+               break
+
+       # 3. 伝票枚数分布の検証（50%/35%/15%に近いか？）
+       package_counts = [
+           int(d.weight / 10.0) for d in deliveries  # weight = 10kg * 伝票数
+       ]
+       package_distribution = {
+           1: round(package_counts.count(1) / len(deliveries) * 100, 1),
+           2: round(package_counts.count(2) / len(deliveries) * 100, 1),
+           3: round(package_counts.count(3) / len(deliveries) * 100, 1),
+       }
+
+       # 4. 時間指定分布の検証（30%/60%/10%に近いか？）
+       time_windows = [d.time_window for d in deliveries]
+       time_window_distribution = {
+           'morning': round(time_windows.count('morning') / len(deliveries) * 100, 1),
+           'afternoon': round(time_windows.count('afternoon') / len(deliveries) * 100, 1),
+           None: round(time_windows.count(None) / len(deliveries) * 100, 1),
+       }
+
+       return {
+           "depot_distances_valid": depot_distances_valid,
+           "max_depot_distance_km": round(max_depot_distance, 2),
+           "delivery_distances_valid": delivery_distances_valid,
+           "package_distribution": package_distribution,
+           "time_window_distribution": time_window_distribution,
+       }
+   ```
+
+4. **シード値固定オプションの追加**
+   ```python
+   def create_demo_data(seed: Optional[int] = 42) -> Dict[str, Any]:
+       """
+       Demoデータ生成
+
+       Args:
+           seed: ランダムシード値（再現可能なテスト用）。
+                 デフォルト: 42（固定値で毎回同じデータ生成）
+                 None の場合: 完全ランダム（毎回異なるデータ生成）
+
+       Returns:
+           Dict: 生成結果
+               - depots: List[Depot]
+               - vehicles: List[Vehicle]
+               - deliveries: List[Delivery]
+               - validation_result: Dict
+       """
+       import random
+
+       # シード値を固定（テストやデバッグ時の再現性確保）
+       if seed is not None:
+           random.seed(seed)
+           # これにより、同じseed値で毎回同じデータが生成される
+
+       # ... データ生成ロジック
    ```
 
 ### Existing Pattern Reference

@@ -1,11 +1,11 @@
-# Story 5.2: 大規模車両管理機能の実装
+# Story 5.2: 大規模車両管理機能の実装（Multi-Depot VRP対応）
 
 **Story Type:** Brownfield Enhancement
 **Status:** 📝 To Do
 **Created:** 2025-11-03
 **Priority:** P1 (High)
 **Epic:** [Epic 005: Demoデータ拡張](epic-005-demo-data-expansion.md)
-**Estimated Effort:** 2-3 hours
+**Estimated Effort:** 5-7 hours
 
 ---
 
@@ -83,10 +83,11 @@
    - 既存のバリデーションルールを尊重
    - `depot_id` 外部キー制約を維持
 
-5. **VRP最適化エンジンとの統合**
+5. **VRP最適化エンジンとの統合（Multi-Depot対応）**
    - OR-Tools が10台車両を正しく認識すること
-   - 各車両が適切な拠点から出発・帰還すること
+   - **各車両が所属拠点から出発し、所属拠点へ帰還すること**
    - 容量制約が正しく適用されること
+   - 距離マトリクスが **4拠点 + 100配送先 = 104ノード** に対応すること
 
 6. **既存の車両管理機能との互換性**
    - `GET /api/v1/vehicles` エンドポイントが正常動作
@@ -195,43 +196,66 @@
        return vehicles
    ```
 
-2. **VRP最適化エンジンへの対応**
+2. **VRP最適化エンジンへのMulti-Depot対応**
 
-   **現在の制約:**
-   - OR-Tools の `RoutingModel` は単一拠点（Single Depot）を前提としている
-   - 各車両が異なる拠点から出発する場合、`starts` と `ends` パラメータで制御が必要
+   **OR-Tools Multi-Depot VRP実装:**
+   - OR-Tools は Multi-Depot VRP をサポートしています
+   - `starts` と `ends` パラメータで各車両の出発・帰還拠点を指定
+   - 距離マトリクスを **4拠点 + 100配送先 = 104ノード** に拡張
 
-   **対応方針:**
-   - **Phase 1（Story 5.2）:** 全車両を **拠点1（東京デポ）から出発** として扱う
-     - 理由: OR-Tools の Multi-Depot 対応は複雑で、Epic 005 のスコープ外
-     - 10台車両でのVRP最適化動作を優先
-     - 将来的な Multi-Depot 対応は別Epicで検討
-
-   - **Phase 2（将来検討）:** Multi-Depot VRP 対応
-     - 各車両が所属拠点から出発・帰還
-     - OR-Tools の `starts` / `ends` パラメータをカスタマイズ
-
-   **実装上の注意:**
+   **実装方針:**
    ```python
-   # VRPService.optimize() の修正（必要に応じて）
+   # VRPService._create_data_model() の修正
    def _create_data_model(
        self, depots: List[Depot], vehicles: List[Vehicle], deliveries: List[Delivery]
    ) -> Dict[str, Any]:
-       # Phase 1: 全車両が拠点1（東京デポ）から出発
-       depot_index = 0  # 拠点1のインデックス
-       starts = [depot_index] * len(vehicles)
-       ends = [depot_index] * len(vehicles)
+       """
+       Multi-Depot VRP対応のデータモデル作成
 
-       # Phase 2（将来）: 各車両が所属拠点から出発
-       # starts = [depot_to_index[v.depot_id] for v in vehicles]
-       # ends = [depot_to_index[v.depot_id] for v in vehicles]
+       ロケーション構成:
+       - インデックス 0-3: 4拠点（東京、横浜、川口、市川）
+       - インデックス 4-103: 100配送先
+       """
+
+       # 1. 拠点のインデックスマッピング
+       depot_to_index = {depot.id: i for i, depot in enumerate(depots)}
+
+       # 2. 各車両の出発・帰還拠点を設定
+       starts = [depot_to_index[v.depot_id] for v in vehicles]
+       ends = [depot_to_index[v.depot_id] for v in vehicles]
+
+       # 3. 距離マトリクスの作成（4拠点 + 100配送先）
+       locations = [
+           (depot.latitude, depot.longitude) for depot in depots
+       ] + [
+           (delivery.latitude, delivery.longitude) for delivery in deliveries
+       ]
+
+       num_locations = len(locations)  # 104ノード
+       distance_matrix = [[0] * num_locations for _ in range(num_locations)]
+
+       for i in range(num_locations):
+           for j in range(num_locations):
+               if i != j:
+                   distance_km = self.calculate_haversine_distance(
+                       locations[i][0], locations[i][1],
+                       locations[j][0], locations[j][1]
+                   )
+                   distance_matrix[i][j] = int(distance_km * 1000)  # m単位
 
        return {
-           "starts": starts,
-           "ends": ends,
+           "distance_matrix": distance_matrix,
+           "starts": starts,  # 各車両の出発拠点インデックス
+           "ends": ends,      # 各車両の帰還拠点インデックス
+           "num_vehicles": len(vehicles),
            # ... 他のデータモデル
        }
    ```
+
+   **重要な変更点:**
+   - 既存の単一拠点前提（`depot_index = 0`）から Multi-Depot 対応に変更
+   - 距離マトリクスのサイズが **1+20=21ノード → 4+100=104ノード** に拡大
+   - 各車両が所属拠点から出発・帰還する
 
 ### Existing Pattern Reference
 
@@ -261,10 +285,11 @@ vehicles_data = [
 
 ### Key Constraints
 
-- **VRP最適化の前提条件:** Phase 1 では全車両が拠点1から出発
+- **Multi-Depot VRP対応:** 各車両が所属拠点から出発・帰還する
+- **距離マトリクス:** 104ノード（4拠点 + 100配送先）の組み合わせ計算
 - **パフォーマンス:** 10台車両でのVRP最適化は **10分以内** に完了すること
 - **互換性:** 既存の3台車両での動作も引き続きサポート
-- **スケーラビリティ:** 将来的に Multi-Depot 対応への拡張を考慮
+- **スケーラビリティ:** 配送先インデックスの調整（拠点数分のオフセット）
 
 ---
 
@@ -273,7 +298,9 @@ vehicles_data = [
 - [x] 10台車両が仕様通りに生成される（2t車×5台、4t車×5台）
 - [x] 各車両が正しい拠点に配分される
 - [x] 車両タイプ別の容量・コスト設定が正しい
-- [x] VRP最適化が10台車両に対して動作する（拠点1から全車両出発）
+- [x] VRP最適化が10台車両に対して動作する（**Multi-Depot対応**）
+- [x] **各車両が所属拠点から出発・帰還することを確認**
+- [x] 距離マトリクスが104ノードに対応することを確認
 - [x] 既存の3台車両での最適化も引き続き動作する
 - [x] 既存の `/api/v1/vehicles` エンドポイントが正常動作する
 - [x] Frontend の車両表示が正常動作する
@@ -302,18 +329,17 @@ vehicles_data = [
 
 ### Secondary Risk
 
-**Risk:** Multi-Depot 対応の欠如（各車両が所属拠点から出発しない）
+**Risk:** Multi-Depot VRP実装の複雑さによるバグ発生
 
 **Mitigation:**
-- Phase 1 では「全車両が拠点1から出発」として実装
-- ドキュメントに制約事項を明記
-- 将来の Multi-Depot 対応を別Epicとして計画
-- デモンストレーションには影響なし（最適化効果は十分示せる）
+- 段階的テスト: まず2拠点・2台車両で動作確認
+- 距離マトリクスのバリデーション（104×104の正確性確認）
+- 配送先インデックスの調整ロジックを慎重に実装
+- 各車両のルート結果を詳細にログ出力
 
-**Future Work:**
-- Epic 006（仮）: Multi-Depot VRP 対応
-- OR-Tools の `starts` / `ends` パラメータのカスタマイズ
-- 距離マトリクスの拡張（複数拠点対応）
+**Rollback:**
+- 緊急時は Single Depot（拠点1のみ）に切り戻し可能
+- `starts`/`ends` パラメータを `[0] * len(vehicles)` に戻す
 
 ### Compatibility Verification
 

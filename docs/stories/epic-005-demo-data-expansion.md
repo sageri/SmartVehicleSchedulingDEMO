@@ -184,19 +184,21 @@
 
 ---
 
-### Story 5.2: 大規模車両管理機能の実装
+### Story 5.2: 大規模車両管理機能の実装（Multi-Depot VRP対応）
 
 **概要:**
 - 10台車両対応（2t車×5台、4t車×5台）
 - 各拠点への車両配分ロジック
+- **Multi-Depot VRP実装（各車両が所属拠点から出発・帰還）**
 - 車両タイプ別の容量・コスト設定
 
 **Technical Approach:**
 - 車両生成ロジックの拡張
 - 拠点-車両関連付けの最適化
-- Repository層の調整（必要に応じて）
+- **OR-Tools の `starts`/`ends` パラメータをMulti-Depot対応**
+- 距離マトリクスを104ノード（4拠点 + 100配送先）に拡張
 
-**Estimated Effort:** 2-3 hours
+**Estimated Effort:** 5-7 hours
 
 ---
 
@@ -205,7 +207,7 @@
 **概要:**
 - 地図表示範囲の拡大（半径50km対応）
 - 100件マーカー表示のパフォーマンス最適化
-- VRP計算時間の許容範囲確認（目標: 60秒以内）
+- VRP計算時間の許容範囲確認（目標: **10分以内**、理想: 5分以内）
 - 結果表示UIの調整
 
 **Technical Approach:**
@@ -306,8 +308,8 @@
 ### Potential Negative Impacts
 
 ⚠️ **Performance:**
-- VRP計算時間の増加（目標: 60秒以内）
-- Frontend表示の重さ（要最適化）
+- VRP計算時間の増加（目標: **10分以内**、理想: 5分以内）
+- Frontend表示の重さ（要最適化、目標: マーカー描画1秒以内）
 
 ⚠️ **Complexity:**
 - デバッグの複雑化（データ量増加）
@@ -332,11 +334,13 @@
 | Story | Estimated Effort | Priority |
 |-------|------------------|----------|
 | Story 5.1 | 4-6 hours | P1 (High) |
-| Story 5.2 | 2-3 hours | P1 (High) |
+| Story 5.2 | 5-7 hours | P1 (High) |
 | Story 5.3 | 3-4 hours | P2 (Medium) |
-| **Total** | **9-13 hours** | - |
+| **Total** | **12-17 hours** | - |
 
 **Recommended Approach:** 段階的実装（Story 5.1 → 5.2 → 5.3）
+
+**注記:** Story 5.2の工数がMulti-Depot VRP完全対応により増加（2-3h → 5-7h）
 
 ---
 
