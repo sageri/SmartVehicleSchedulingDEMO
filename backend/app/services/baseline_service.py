@@ -11,6 +11,23 @@ from app.models.vehicle import Vehicle
 from app.models.delivery import Delivery
 
 
+def safe_divide(numerator: float, denominator: float, default_value: float = 0.0) -> float:
+    """
+    安全な除法：分母が0の場合のエラーを防ぐ
+
+    Args:
+        numerator: 分子
+        denominator: 分母
+        default_value: 分母が0の場合のデフォルト値
+
+    Returns:
+        float: 計算結果またはデフォルト値
+    """
+    if denominator == 0 or not (isinstance(denominator, (int, float)) and math.isfinite(denominator)):
+        return default_value
+    return numerator / denominator
+
+
 class BaselineService:
     """
     基線計算サービス
@@ -161,7 +178,7 @@ class BaselineService:
             )
 
             # 積載率計算
-            utilization_weight = (route_weight / vehicle.capacity_weight) * 100.0
+            utilization_weight = safe_divide(route_weight, vehicle.capacity_weight, 0.0) * 100.0
 
             # 累計
             total_distance += route_distance

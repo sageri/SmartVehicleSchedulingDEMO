@@ -27,6 +27,23 @@ from app.services.metrics_service import MetricsService
 from app.config import settings
 
 
+def safe_divide(numerator: float, denominator: float, default_value: float = 0.0) -> float:
+    """
+    安全な除法：分母が0の場合のエラーを防ぐ
+
+    Args:
+        numerator: 分子
+        denominator: 分母
+        default_value: 分母が0の場合のデフォルト値
+
+    Returns:
+        float: 計算結果またはデフォルト値
+    """
+    if denominator == 0 or not (isinstance(denominator, (int, float)) and math.isfinite(denominator)):
+        return default_value
+    return numerator / denominator
+
+
 class VRPService:
     """
     VRP最適化サービス
@@ -451,8 +468,8 @@ class VRPService:
             ) * vehicle.cost_per_hour
 
             # 積載率計算
-            utilization_weight = (route_weight / vehicle.capacity_weight) * 100.0
-            utilization_volume = (route_volume / vehicle.capacity_volume) * 100.0
+            utilization_weight = safe_divide(route_weight, vehicle.capacity_weight, 0.0) * 100.0
+            utilization_volume = safe_divide(route_volume, vehicle.capacity_volume, 0.0) * 100.0
 
             routes.append(
                 Route(
