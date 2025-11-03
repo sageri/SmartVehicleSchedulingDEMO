@@ -4,8 +4,8 @@
  * 左側サイドバーの操作コントロール
  */
 
-import React, { useState } from 'react';
-import { Button, Divider, Typography, Space } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Button, Divider, Typography, Space, Modal, Spin, Progress } from 'antd';
 import { ThunderboltOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import { useVRPStore } from '../../stores/useVRPStore';
 import { SelectionDetailDrawer } from './SelectionDetailDrawer';
@@ -29,6 +29,39 @@ export const ControlPanel: React.FC = () => {
   // Drawer 表示状態管理
   const [detailsVisible, setDetailsVisible] = useState(false);
 
+  // Story 5.3: 最適化進捗表示
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+
+  // 最適化中の経過時間カウンター（Story 5.3）
+  useEffect(() => {
+    let timer: NodeJS.Timeout | null = null;
+
+    if (loading) {
+      setElapsedSeconds(0);
+      timer = setInterval(() => {
+        setElapsedSeconds((prev) => prev + 1);
+      }, 1000);
+    } else {
+      if (timer) {
+        clearInterval(timer);
+      }
+      setElapsedSeconds(0);
+    }
+
+    return () => {
+      if (timer) {
+        clearInterval(timer);
+      }
+    };
+  }, [loading]);
+
+  // 経過時間のフォーマット (mm:ss)
+  const formatElapsedTime = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
   // 選択データの有無チェック
   const hasSelection =
     selectedDepotIds.length > 0 ||
@@ -50,7 +83,7 @@ export const ControlPanel: React.FC = () => {
           デモデータ作成
         </Button>
         <Text type="secondary" style={{ fontSize: 12, marginTop: 8, display: 'block' }}>
-          拠点1件、車両3台、配送先20件を生成
+          拠点4件、車両10台、配送先100件を生成
         </Text>
       </div>
 
@@ -97,7 +130,7 @@ export const ControlPanel: React.FC = () => {
           VRP最適化実行
         </Button>
         <Text type="secondary" style={{ fontSize: 12, marginTop: 8, display: 'block' }}>
-          計算時間: 2-30秒
+          計算時間: 2秒-10分（データ規模による）
         </Text>
       </div>
 
@@ -114,6 +147,37 @@ export const ControlPanel: React.FC = () => {
         visible={detailsVisible}
         onClose={() => setDetailsVisible(false)}
       />
+
+      {/* Story 5.3: 最適化進捗モーダル */}
+      <Modal
+        open={loading}
+        title="VRP最適化実行中"
+        footer={null}
+        closable={false}
+        centered
+        width={400}
+      >
+        <Space direction="vertical" style={{ width: '100%', textAlign: 'center' }} size="large">
+          <Spin size="large" />
+          <div>
+            <Text strong style={{ fontSize: 16 }}>
+              経過時間: {formatElapsedTime(elapsedSeconds)}
+            </Text>
+            <br />
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              目標: 10:00 以内
+            </Text>
+          </div>
+          <Progress
+            percent={Math.min((elapsedSeconds / 600) * 100, 100)}
+            status={elapsedSeconds >= 600 ? 'exception' : 'active'}
+            strokeColor={elapsedSeconds >= 600 ? '#ff4d4f' : '#1890ff'}
+          />
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            配送先数が多い場合、計算に数分かかることがあります
+          </Text>
+        </Space>
+      </Modal>
     </Space>
   );
 };

@@ -114,10 +114,30 @@ const ImprovementCards: React.FC = () => {
  * ルート一覧テーブル
  */
 const RouteTable: React.FC = () => {
-  const { optimizationResult, setActiveRouteId } = useVRPStore();
+  const { optimizationResult, setActiveRouteId, vehicles, depots } = useVRPStore();
   if (!optimizationResult) return null;
 
   const { routes } = optimizationResult;
+
+  // Story 5.3: 車両情報取得用のヘルパー
+  const getVehicleInfo = (vehicleId: string) => {
+    const vehicle = vehicles.find((v) => v.id === vehicleId);
+    return vehicle?.vehicle_type || 'N/A';
+  };
+
+  // Story 5.3: 拠点情報取得用のヘルパー
+  const getDepotInfo = (depotId: string) => {
+    const depot = depots.find((d) => d.id === depotId);
+    return depot?.name || depotId;
+  };
+
+  // Story 5.3: 拠点別の色マッピング
+  const depotColorMap: Record<string, string> = {
+    'depot-tokyo': 'blue',
+    'depot-yokohama': 'green',
+    'depot-kawaguchi': 'orange',
+    'depot-ichikawa': 'purple',
+  };
 
   const columns = [
     {
@@ -125,6 +145,7 @@ const RouteTable: React.FC = () => {
       dataIndex: 'index',
       key: 'index',
       width: 80,
+      fixed: 'left' as const,
       render: (_: any, __: any, index: number) => (
         <Tag color="blue">ルート {index + 1}</Tag>
       ),
@@ -133,7 +154,34 @@ const RouteTable: React.FC = () => {
       title: '車両ID',
       dataIndex: 'vehicle_id',
       key: 'vehicle_id',
-      width: 120,
+      width: 140,
+    },
+    {
+      // Story 5.3: 車両タイプ列追加
+      title: '車両タイプ',
+      dataIndex: 'vehicle_id',
+      key: 'vehicle_type',
+      width: 100,
+      render: (vehicleId: string) => {
+        const vehicleType = getVehicleInfo(vehicleId);
+        return (
+          <Tag color={vehicleType === '2t' ? 'cyan' : 'geekblue'}>
+            {vehicleType}
+          </Tag>
+        );
+      },
+    },
+    {
+      // Story 5.3: 拠点列追加
+      title: '拠点',
+      dataIndex: 'depot_id',
+      key: 'depot_id',
+      width: 140,
+      render: (depotId: string) => (
+        <Tag color={depotColorMap[depotId] || 'default'}>
+          {getDepotInfo(depotId)}
+        </Tag>
+      ),
     },
     {
       title: '停車数',
@@ -193,7 +241,7 @@ const RouteTable: React.FC = () => {
       columns={columns}
       rowKey="id"
       pagination={false}
-      scroll={{ x: 800 }}
+      scroll={{ x: 1200, y: 600 }}  // Story 5.3: スクロール高さ追加
       size="small"
       onRow={(record) => ({
         onClick: () => setActiveRouteId(record.id),
