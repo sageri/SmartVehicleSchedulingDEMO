@@ -1,11 +1,12 @@
 # Story 5.2: 大規模車両管理機能の実装（Multi-Depot VRP対応）
 
 **Story Type:** Brownfield Enhancement
-**Status:** 📝 To Do
+**Status:** ✅ 完了（2025-11-03）
 **Created:** 2025-11-03
 **Priority:** P1 (High)
 **Epic:** [Epic 005: Demoデータ拡張](epic-005-demo-data-expansion.md)
 **Estimated Effort:** 5-7 hours
+**Actual Effort:** ~6 hours
 
 ---
 

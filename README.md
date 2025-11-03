@@ -2,10 +2,10 @@
 
 **AI Automatic Vehicle Routing System - Demo Prototype**
 
-> **🚧 プロジェクト状態：** Story 5.1 完了（多拠点・大規模配送先データ生成機能実装完了）
+> **🚧 プロジェクト状態：** Story 5.2 完了（Multi-Depot VRP対応実装完了）
 > **📅 最終更新：** 2025-11-03
-> **✅ 現在の実装：** Epic 005 Phase 1完了（4拠点・100配送先・10台車両データ生成）
-> **🔜 開発予定：** Story 5.2 Multi-Depot VRP対応、Story 5.3 UI/UXパフォーマンス最適化
+> **✅ 現在の実装：** Epic 005 完了（4拠点・100配送先・10台車両 Multi-Depot VRP）
+> **🔜 開発予定：** Story 5.3 UI/UXパフォーマンス最適化、E2Eテスト
 
 ---
 
