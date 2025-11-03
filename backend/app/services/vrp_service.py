@@ -180,10 +180,16 @@ class VRPService:
         num_depots = len(depots)
 
         # 需要（重量）- 拠点はすべて0、配送先は実重量
-        demands = [0] * num_depots + [int(d.weight) for d in deliveries]
+        demands_weight = [0] * num_depots + [int(d.weight) for d in deliveries]
 
-        # 車両容量
-        vehicle_capacities = [int(v.capacity_weight) for v in vehicles]
+        # 需要（容積）- 拠点はすべて0、配送先は実容積（Story 5.2: 双重容量約束対応）
+        demands_volume = [0] * num_depots + [int(d.volume * 100) for d in deliveries]  # m³ → リットル × 10
+
+        # 車両容量（重量）
+        vehicle_capacities_weight = [int(v.capacity_weight) for v in vehicles]
+
+        # 車両容量（容積）- Story 5.2: 双重容量約束対応
+        vehicle_capacities_volume = [int(v.capacity_volume * 100) for v in vehicles]  # m³ → リットル × 10
 
         # Epic 005: Multi-Depot対応 - 各車両の出発・帰還拠点を設定
         starts = [depot_to_index[v.depot_id] for v in vehicles]
@@ -211,8 +217,10 @@ class VRPService:
         return {
             "distance_matrix": distance_matrix,
             "time_matrix": time_matrix,
-            "demands": demands,
-            "vehicle_capacities": vehicle_capacities,
+            "demands_weight": demands_weight,                          # Story 5.2: 重量需要
+            "demands_volume": demands_volume,                          # Story 5.2: 容積需要
+            "vehicle_capacities_weight": vehicle_capacities_weight,    # Story 5.2: 重量容量
+            "vehicle_capacities_volume": vehicle_capacities_volume,    # Story 5.2: 容積容量
             "num_vehicles": len(vehicles),
             "starts": starts,  # Multi-Depot: 各車両の出発拠点
             "ends": ends,      # Multi-Depot: 各車両の帰還拠点
@@ -263,19 +271,36 @@ class VRPService:
         transit_callback_index = routing.RegisterTransitCallback(distance_callback)
         routing.SetArcCostEvaluatorOfAllVehicles(transit_callback_index)
 
-        # 5. 容量制約追加
-        def demand_callback(from_index: int) -> int:
-            from_node = manager.IndexToNode(from_index)
-            return data["demands"][from_node]
+        # 5. 容量制約追加（Story 5.2: 双重容量約束対応）
 
-        demand_callback_index = routing.RegisterUnaryTransitCallback(demand_callback)
+        # 5.1 重量容量制約
+        def demand_callback_weight(from_index: int) -> int:
+            from_node = manager.IndexToNode(from_index)
+            return data["demands_weight"][from_node]
+
+        demand_callback_weight_index = routing.RegisterUnaryTransitCallback(demand_callback_weight)
 
         routing.AddDimensionWithVehicleCapacity(
-            demand_callback_index,
+            demand_callback_weight_index,
             0,  # null capacity slack
-            data["vehicle_capacities"],
+            data["vehicle_capacities_weight"],
             True,  # start cumul to zero
-            "Capacity",
+            "CapacityWeight",
+        )
+
+        # 5.2 容積容量制約（Story 5.2: 新規追加）
+        def demand_callback_volume(from_index: int) -> int:
+            from_node = manager.IndexToNode(from_index)
+            return data["demands_volume"][from_node]
+
+        demand_callback_volume_index = routing.RegisterUnaryTransitCallback(demand_callback_volume)
+
+        routing.AddDimensionWithVehicleCapacity(
+            demand_callback_volume_index,
+            0,  # null capacity slack
+            data["vehicle_capacities_volume"],
+            True,  # start cumul to zero
+            "CapacityVolume",
         )
 
         # 6. 時間制約追加
