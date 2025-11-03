@@ -111,6 +111,7 @@ export interface BaselineMetrics {
   total_duration: number; // minutes
   total_cost: number; // ¥
   average_utilization_weight: number; // %
+  vehicle_count: number; // 使用車両数（台） ← ✅ 新規追加フィールド
   method: string; // "simple_assignment"
 }
 

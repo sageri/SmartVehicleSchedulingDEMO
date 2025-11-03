@@ -119,6 +119,7 @@ class BaselineMetrics(BaseModel):
     total_duration: int = Field(..., ge=0, description="基線総時間 (分)")
     total_cost: float = Field(..., ge=0, description="基線総コスト (¥)")
     average_utilization_weight: float = Field(..., ge=0, le=100, description="基線平均積載率 (%)")
+    vehicle_count: int = Field(..., ge=0, description="基線使用車両数 (台)")  # ✅ 新規追加フィールド
     method: str = Field(default="simple_assignment", description="基線計算方法")
 
     model_config = ConfigDict(
@@ -128,6 +129,7 @@ class BaselineMetrics(BaseModel):
                 "total_duration": 480,
                 "total_cost": 35000.0,
                 "average_utilization_weight": 65.3,
+                "vehicle_count": 3,  # ✅ 新規追加フィールド
                 "method": "simple_assignment",
             }
         }
@@ -228,6 +230,7 @@ class OptimizationResult(BaseModel):
                     "total_duration": 480,
                     "total_cost": 35000.0,
                     "average_utilization_weight": 65.3,
+                    "vehicle_count": 3,  # ✅ 新規追加フィールド
                     "method": "simple_assignment",
                 },
                 "improvement_metrics": {

@@ -75,6 +75,7 @@ class BaselineService:
                 - total_duration: 総時間（分）
                 - total_cost: 総コスト（¥）
                 - average_utilization_weight: 平均重量積載率（%）
+                - vehicle_count: 使用車両数（台）
                 - method: "simple_assignment"
         """
         if not vehicles or not deliveries:
@@ -83,6 +84,7 @@ class BaselineService:
                 "total_duration": 0,
                 "total_cost": 0.0,
                 "average_utilization_weight": 0.0,
+                "vehicle_count": 0,  # ✅ 新規追加フィールド
                 "method": "simple_assignment",
             }
 
@@ -97,6 +99,7 @@ class BaselineService:
         total_duration = 0
         total_cost = 0.0
         total_utilization_weight = 0.0
+        used_vehicle_count = 0  # 実際に使用された車両数
 
         delivery_idx = 0
 
@@ -106,6 +109,9 @@ class BaselineService:
 
             if num_deliveries == 0:
                 continue
+
+            # 車両を使用
+            used_vehicle_count += 1
 
             # 車両のルート: depot → delivery1 → delivery2 → ... → depot
             route_distance = 0.0
@@ -163,13 +169,16 @@ class BaselineService:
             total_cost += route_cost
             total_utilization_weight += utilization_weight
 
-        # 平均積載率
-        average_utilization_weight = total_utilization_weight / len(vehicles)
+        # 平均積載率（使用された車両のみで計算）
+        average_utilization_weight = (
+            total_utilization_weight / used_vehicle_count if used_vehicle_count > 0 else 0.0
+        )
 
         return {
             "total_distance": round(total_distance, 2),
             "total_duration": total_duration,
             "total_cost": round(total_cost, 2),
             "average_utilization_weight": round(average_utilization_weight, 2),
+            "vehicle_count": used_vehicle_count,  # ✅ 新規追加フィールド
             "method": "simple_assignment",
         }
