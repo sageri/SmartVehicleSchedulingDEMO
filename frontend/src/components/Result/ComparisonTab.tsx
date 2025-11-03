@@ -161,8 +161,11 @@ export const ComparisonTab: React.FC = () => {
         }分`,
         diff: improvement_metrics.duration_reduction_minutes,
         diffPercent: (
-          (improvement_metrics.duration_reduction_minutes / baseline_metrics.total_duration) *
-          100
+          safeDivide(
+            improvement_metrics.duration_reduction_minutes,
+            baseline_metrics.total_duration,
+            0
+          ) * 100
         ).toFixed(1),
         isImprovement: improvement_metrics.duration_reduction_minutes > 0,
       },
@@ -182,9 +185,11 @@ export const ComparisonTab: React.FC = () => {
         optimized: `${optimizationResult.average_utilization_weight.toFixed(1)}%`,
         diff: improvement_metrics.utilization_improvement_percent,
         diffPercent: (
-          (improvement_metrics.utilization_improvement_percent /
-            baseline_metrics.average_utilization_weight) *
-          100
+          safeDivide(
+            improvement_metrics.utilization_improvement_percent,
+            baseline_metrics.average_utilization_weight,
+            0
+          ) * 100
         ).toFixed(1),
         isImprovement: improvement_metrics.utilization_improvement_percent > 0,
       },
@@ -200,10 +205,12 @@ export const ComparisonTab: React.FC = () => {
                 optimizationResult.total_distance / totalStops -
                 baseline_metrics.total_distance / totalStops,
               diffPercent: (
-                ((optimizationResult.total_distance / totalStops -
-                  baseline_metrics.total_distance / totalStops) /
-                  (baseline_metrics.total_distance / totalStops)) *
-                100
+                safeDivide(
+                  (optimizationResult.total_distance / totalStops -
+                    baseline_metrics.total_distance / totalStops),
+                  baseline_metrics.total_distance / totalStops,
+                  0
+                ) * 100
               ).toFixed(1),
               isImprovement:
                 optimizationResult.total_distance / totalStops <
@@ -222,10 +229,12 @@ export const ComparisonTab: React.FC = () => {
                 Math.round(optimizationResult.total_cost / totalStops) -
                 Math.round(baseline_metrics.total_cost / totalStops),
               diffPercent: (
-                ((optimizationResult.total_cost / totalStops -
-                  baseline_metrics.total_cost / totalStops) /
-                  (baseline_metrics.total_cost / totalStops)) *
-                100
+                safeDivide(
+                  (optimizationResult.total_cost / totalStops -
+                    baseline_metrics.total_cost / totalStops),
+                  baseline_metrics.total_cost / totalStops,
+                  0
+                ) * 100
               ).toFixed(1),
               isImprovement:
                 optimizationResult.total_cost / totalStops <
