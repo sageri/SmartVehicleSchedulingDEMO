@@ -4,10 +4,11 @@
  * 左側サイドバーの操作コントロール
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Button, Divider, Typography, Space } from 'antd';
-import { ThunderboltOutlined } from '@ant-design/icons';
+import { ThunderboltOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import { useVRPStore } from '../../stores/useVRPStore';
+import { SelectionDetailDrawer } from './SelectionDetailDrawer';
 
 const { Title, Text } = Typography;
 
@@ -24,6 +25,15 @@ export const ControlPanel: React.FC = () => {
     selectedVehicleIds,
     selectedDeliveryIds,
   } = useVRPStore();
+
+  // Drawer 表示状態管理
+  const [detailsVisible, setDetailsVisible] = useState(false);
+
+  // 選択データの有無チェック
+  const hasSelection =
+    selectedDepotIds.length > 0 ||
+    selectedVehicleIds.length > 0 ||
+    selectedDeliveryIds.length > 0;
 
   return (
     <Space direction="vertical" style={{ width: '100%' }} size="large">
@@ -53,6 +63,17 @@ export const ControlPanel: React.FC = () => {
           <Text>拠点: {selectedDepotIds.length} 件</Text>
           <Text>車両: {selectedVehicleIds.length} 台</Text>
           <Text>配送先: {selectedDeliveryIds.length} 件</Text>
+
+          {/* 詳細表示ボタン */}
+          <Button
+            size="small"
+            icon={<InfoCircleOutlined />}
+            onClick={() => setDetailsVisible(true)}
+            disabled={!hasSelection}
+            style={{ marginTop: 8 }}
+          >
+            詳細を表示
+          </Button>
         </Space>
       </div>
 
@@ -87,6 +108,12 @@ export const ControlPanel: React.FC = () => {
           <Text type="danger">{error}</Text>
         </>
       )}
+
+      {/* 選択状態詳細Drawer */}
+      <SelectionDetailDrawer
+        visible={detailsVisible}
+        onClose={() => setDetailsVisible(false)}
+      />
     </Space>
   );
 };
