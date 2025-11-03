@@ -284,8 +284,9 @@ class VRPService:
             to_node = manager.IndexToNode(to_index)
             travel_time = data["time_matrix"][from_node][to_node]
             # サービス時間を追加（配送先の場合）
-            if to_node > 0:  # 拠点以外
-                service_time = deliveries[to_node - 1].service_time
+            # Epic 005: Multi-Depot対応 - 拠点ノードをすべてスキップ
+            if to_node >= data["num_depots"]:  # 配送先ノードのみ
+                service_time = deliveries[to_node - data["num_depots"]].service_time
                 return travel_time + service_time
             return travel_time
 
