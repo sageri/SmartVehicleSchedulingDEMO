@@ -4,10 +4,12 @@
  * 最適化されたルートを Polyline で地図上に表示
  * - 各ルートは異なる色で表示
  * - 拠点 → 配送先1 → 配送先2 → ... → 拠点
+ * - Story 4.3: ルート方向矢印可視化（各セグメント中点に矢印表示）
  */
 
 import React from 'react';
-import { Polyline, Popup } from 'react-leaflet';
+import { Polyline, Popup, Marker } from 'react-leaflet';
+import { divIcon } from 'leaflet';
 import type { Route, Depot, Delivery } from '../../types';
 import { ROUTE_COLORS } from '../../types';
 
@@ -17,6 +19,53 @@ interface RoutePolylineProps {
   depots: Depot[];
   deliveries: Delivery[];
 }
+
+/**
+ * 2点間の中点と角度を計算
+ * @param from 始点座標 [latitude, longitude]
+ * @param to 終点座標 [latitude, longitude]
+ * @returns 中点座標と角度（度数法）
+ */
+const calculateMidpointAndAngle = (
+  from: [number, number],
+  to: [number, number]
+): { midpoint: [number, number]; angle: number } => {
+  const midpoint: [number, number] = [
+    (from[0] + to[0]) / 2,
+    (from[1] + to[1]) / 2,
+  ];
+
+  // 角度計算（atan2 で北を0度、時計回りを正とする）
+  const deltaLng = to[1] - from[1];
+  const deltaLat = to[0] - from[0];
+  const angle = Math.atan2(deltaLng, deltaLat) * (180 / Math.PI);
+
+  return { midpoint, angle };
+};
+
+/**
+ * 矢印アイコンを作成
+ * @param color ルートの色
+ * @param angle 回転角度（度数法）
+ * @returns Leaflet DivIcon
+ */
+const createArrowIcon = (color: string, angle: number) => {
+  return divIcon({
+    html: `
+      <div style="
+        transform: rotate(${angle}deg);
+        pointer-events: none;
+      ">
+        <svg width="20" height="20" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+          <path d="M10 0 L15 10 L10 8 L5 10 Z" fill="${color}" stroke="white" stroke-width="1"/>
+        </svg>
+      </div>
+    `,
+    className: 'route-arrow-icon',
+    iconSize: [20, 20],
+    iconAnchor: [10, 10],
+  });
+};
 
 /**
  * ルートポリラインコンポーネント
@@ -53,8 +102,26 @@ export const RoutePolyline: React.FC<RoutePolylineProps> = ({
   // 拠点に戻る
   coordinates.push([depot.latitude, depot.longitude]);
 
+  // 各セグメントの矢印を計算
+  const arrows = [];
+  for (let i = 0; i < coordinates.length - 1; i++) {
+    const from = coordinates[i];
+    const to = coordinates[i + 1];
+    const { midpoint, angle } = calculateMidpointAndAngle(from, to);
+    arrows.push(
+      <Marker
+        key={`arrow-${route.id}-${i}`}
+        position={midpoint}
+        icon={createArrowIcon(routeColor, angle)}
+        interactive={false}
+        zIndexOffset={-1000} // ルート線の下に配置
+      />
+    );
+  }
+
   return (
-    <Polyline
+    <>
+      <Polyline
       positions={coordinates}
       pathOptions={{
         color: routeColor,
@@ -111,5 +178,9 @@ export const RoutePolyline: React.FC<RoutePolylineProps> = ({
         </div>
       </Popup>
     </Polyline>
+
+    {/* ルート方向矢印 */}
+    {arrows}
+  </>
   );
 };
