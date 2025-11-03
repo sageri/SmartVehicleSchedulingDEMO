@@ -1,11 +1,12 @@
 # Story 5.1: 多拠点・大規模配送先データ生成機能の実装
 
 **Story Type:** Brownfield Enhancement
-**Status:** 📝 To Do
+**Status:** ✅ 完了（2025-11-03）
 **Created:** 2025-11-03
 **Priority:** P1 (High)
 **Epic:** [Epic 005: Demoデータ拡張](epic-005-demo-data-expansion.md)
 **Estimated Effort:** 4-6 hours
+**Actual Effort:** ~5 hours
 
 ---
 
