@@ -11,6 +11,23 @@ from app.models.vehicle import Vehicle
 from app.models.delivery import Delivery
 
 
+def safe_divide(numerator: float, denominator: float, default_value: float = 0.0) -> float:
+    """
+    安全な除法：分母が0の場合のエラーを防ぐ
+
+    Args:
+        numerator: 分子
+        denominator: 分母
+        default_value: 分母が0の場合のデフォルト値
+
+    Returns:
+        float: 計算結果またはデフォルト値
+    """
+    if denominator == 0 or not (isinstance(denominator, (int, float)) and math.isfinite(denominator)):
+        return default_value
+    return numerator / denominator
+
+
 class BaselineService:
     """
     基線計算サービス
@@ -75,6 +92,7 @@ class BaselineService:
                 - total_duration: 総時間（分）
                 - total_cost: 総コスト（¥）
                 - average_utilization_weight: 平均重量積載率（%）
+                - vehicle_count: 使用車両数（台）
                 - method: "simple_assignment"
         """
         if not vehicles or not deliveries:
@@ -83,6 +101,7 @@ class BaselineService:
                 "total_duration": 0,
                 "total_cost": 0.0,
                 "average_utilization_weight": 0.0,
+                "vehicle_count": 0,  # ✅ 新規追加フィールド
                 "method": "simple_assignment",
             }
 
@@ -97,6 +116,7 @@ class BaselineService:
         total_duration = 0
         total_cost = 0.0
         total_utilization_weight = 0.0
+        used_vehicle_count = 0  # 実際に使用された車両数
 
         delivery_idx = 0
 
@@ -106,6 +126,9 @@ class BaselineService:
 
             if num_deliveries == 0:
                 continue
+
+            # 車両を使用
+            used_vehicle_count += 1
 
             # 車両のルート: depot → delivery1 → delivery2 → ... → depot
             route_distance = 0.0
@@ -155,7 +178,7 @@ class BaselineService:
             )
 
             # 積載率計算
-            utilization_weight = (route_weight / vehicle.capacity_weight) * 100.0
+            utilization_weight = safe_divide(route_weight, vehicle.capacity_weight, 0.0) * 100.0
 
             # 累計
             total_distance += route_distance
@@ -163,13 +186,16 @@ class BaselineService:
             total_cost += route_cost
             total_utilization_weight += utilization_weight
 
-        # 平均積載率
-        average_utilization_weight = total_utilization_weight / len(vehicles)
+        # 平均積載率（使用された車両のみで計算）
+        average_utilization_weight = (
+            total_utilization_weight / used_vehicle_count if used_vehicle_count > 0 else 0.0
+        )
 
         return {
             "total_distance": round(total_distance, 2),
             "total_duration": total_duration,
             "total_cost": round(total_cost, 2),
             "average_utilization_weight": round(average_utilization_weight, 2),
+            "vehicle_count": used_vehicle_count,  # ✅ 新規追加フィールド
             "method": "simple_assignment",
         }

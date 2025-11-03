@@ -15,10 +15,12 @@ import {
   DollarOutlined,
   RiseOutlined,
   ClockCircleOutlined,
+  SwapOutlined,
 } from '@ant-design/icons';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useVRPStore } from '../../stores/useVRPStore';
 import type { Route } from '../../types';
+import { ComparisonTab } from './ComparisonTab';
 
 const { Title, Text } = Typography;
 
@@ -283,9 +285,18 @@ export const ResultPanel: React.FC = () => {
       children: <RouteTable />,
     },
     {
-      key: 'comparison',
+      key: 'cost-chart',
       label: '📈 コスト比較',
       children: <CostChart />,
+    },
+    {
+      key: 'comparison',
+      label: (
+        <span>
+          <SwapOutlined /> 方案対比
+        </span>
+      ),
+      children: <ComparisonTab />,
     },
   ];
 
