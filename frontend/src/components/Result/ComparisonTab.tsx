@@ -16,6 +16,24 @@ import type { ColumnsType } from 'antd/es/table';
 import { useVRPStore } from '../../stores/useVRPStore';
 
 /**
+ * 安全除法：防止除零錯誤
+ * @param numerator 分子
+ * @param denominator 分母
+ * @param defaultValue 分母為 0 時的默認值
+ * @returns 計算結果或默認值
+ */
+const safeDivide = (
+  numerator: number,
+  denominator: number,
+  defaultValue: number = 0
+): number => {
+  if (denominator === 0 || !isFinite(denominator)) {
+    return defaultValue;
+  }
+  return numerator / denominator;
+};
+
+/**
  * 方案対比Tabコンポーネント
  *
  * 基線方案と最適化後方案の並列比較を表示します。
@@ -80,8 +98,10 @@ export const ComparisonTab: React.FC = () => {
         baseline: baselineVehicleCount,
         optimized: optimizedVehicleCount,
         diff: optimizedVehicleCount - baselineVehicleCount,
-        percent:
-          ((optimizedVehicleCount - baselineVehicleCount) / baselineVehicleCount) * 100,
+        percent: safeDivide(
+          (optimizedVehicleCount - baselineVehicleCount) * 100,
+          baselineVehicleCount
+        ),
         unit: '台',
         formatter: (value: number) => `${value}台`,
       },
@@ -106,9 +126,9 @@ export const ComparisonTab: React.FC = () => {
         baseline: `${baselineVehicleCount}台`,
         optimized: `${optimizedVehicleCount}台`,
         diff: optimizedVehicleCount - baselineVehicleCount,
-        diffPercent: (
-          ((optimizedVehicleCount - baselineVehicleCount) / baselineVehicleCount) *
-          100
+        diffPercent: safeDivide(
+          (optimizedVehicleCount - baselineVehicleCount) * 100,
+          baselineVehicleCount
         ).toFixed(1),
         isImprovement: optimizedVehicleCount < baselineVehicleCount,
       },
@@ -168,46 +188,51 @@ export const ComparisonTab: React.FC = () => {
         ).toFixed(1),
         isImprovement: improvement_metrics.utilization_improvement_percent > 0,
       },
-      {
-        key: 'distance_per_stop',
-        metric: '距離/停車数',
-        baseline: `${(baseline_metrics.total_distance / totalStops).toFixed(2)} km/件`,
-        optimized: `${(optimizationResult.total_distance / totalStops).toFixed(2)} km/件`,
-        diff:
-          optimizationResult.total_distance / totalStops -
-          baseline_metrics.total_distance / totalStops,
-        diffPercent: (
-          ((optimizationResult.total_distance / totalStops -
-            baseline_metrics.total_distance / totalStops) /
-            (baseline_metrics.total_distance / totalStops)) *
-          100
-        ).toFixed(1),
-        isImprovement:
-          optimizationResult.total_distance / totalStops <
-          baseline_metrics.total_distance / totalStops,
-      },
-      {
-        key: 'cost_per_stop',
-        metric: 'コスト/停車数',
-        baseline: `¥${Math.round(
-          baseline_metrics.total_cost / totalStops
-        ).toLocaleString()}/件`,
-        optimized: `¥${Math.round(
-          optimizationResult.total_cost / totalStops
-        ).toLocaleString()}/件`,
-        diff:
-          Math.round(optimizationResult.total_cost / totalStops) -
-          Math.round(baseline_metrics.total_cost / totalStops),
-        diffPercent: (
-          ((optimizationResult.total_cost / totalStops -
-            baseline_metrics.total_cost / totalStops) /
-            (baseline_metrics.total_cost / totalStops)) *
-          100
-        ).toFixed(1),
-        isImprovement:
-          optimizationResult.total_cost / totalStops <
-          baseline_metrics.total_cost / totalStops,
-      },
+      // 只有當 totalStops > 0 時才顯示距離/停車数和コスト/停車数
+      ...(totalStops > 0
+        ? [
+            {
+              key: 'distance_per_stop',
+              metric: '距離/停車数',
+              baseline: `${(baseline_metrics.total_distance / totalStops).toFixed(2)} km/件`,
+              optimized: `${(optimizationResult.total_distance / totalStops).toFixed(2)} km/件`,
+              diff:
+                optimizationResult.total_distance / totalStops -
+                baseline_metrics.total_distance / totalStops,
+              diffPercent: (
+                ((optimizationResult.total_distance / totalStops -
+                  baseline_metrics.total_distance / totalStops) /
+                  (baseline_metrics.total_distance / totalStops)) *
+                100
+              ).toFixed(1),
+              isImprovement:
+                optimizationResult.total_distance / totalStops <
+                baseline_metrics.total_distance / totalStops,
+            },
+            {
+              key: 'cost_per_stop',
+              metric: 'コスト/停車数',
+              baseline: `¥${Math.round(
+                baseline_metrics.total_cost / totalStops
+              ).toLocaleString()}/件`,
+              optimized: `¥${Math.round(
+                optimizationResult.total_cost / totalStops
+              ).toLocaleString()}/件`,
+              diff:
+                Math.round(optimizationResult.total_cost / totalStops) -
+                Math.round(baseline_metrics.total_cost / totalStops),
+              diffPercent: (
+                ((optimizationResult.total_cost / totalStops -
+                  baseline_metrics.total_cost / totalStops) /
+                  (baseline_metrics.total_cost / totalStops)) *
+                100
+              ).toFixed(1),
+              isImprovement:
+                optimizationResult.total_cost / totalStops <
+                baseline_metrics.total_cost / totalStops,
+            },
+          ]
+        : []),
     ];
   }, [
     baseline_metrics,
