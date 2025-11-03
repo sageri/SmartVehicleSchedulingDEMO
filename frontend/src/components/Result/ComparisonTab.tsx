@@ -74,6 +74,7 @@ export const ComparisonTab: React.FC = () => {
         percent: improvement_metrics.distance_reduction_percent,
         unit: 'km',
         formatter: (value: number) => `${value.toFixed(2)} km`,
+        isImprovement: improvement_metrics.distance_reduction_km > 0,
       },
       {
         title: '総コスト',
@@ -83,6 +84,7 @@ export const ComparisonTab: React.FC = () => {
         percent: improvement_metrics.cost_reduction_percent,
         unit: '¥',
         formatter: (value: number) => `¥${value.toLocaleString()}`,
+        isImprovement: improvement_metrics.cost_reduction_amount > 0,
       },
       {
         title: '平均積載率',
@@ -92,18 +94,22 @@ export const ComparisonTab: React.FC = () => {
         percent: improvement_metrics.utilization_improvement_percent,
         unit: '%',
         formatter: (value: number) => `${value.toFixed(1)}%`,
+        isImprovement: improvement_metrics.utilization_improvement_percent > 0,
       },
       {
         title: '使用車両数',
         baseline: baselineVehicleCount,
         optimized: optimizedVehicleCount,
-        diff: optimizedVehicleCount - baselineVehicleCount,
+        // ✅ 修正：車両数は減少が改善なので、差值定義為基線減最優
+        diff: baselineVehicleCount - optimizedVehicleCount,
         percent: safeDivide(
-          (optimizedVehicleCount - baselineVehicleCount) * 100,
+          (baselineVehicleCount - optimizedVehicleCount) * 100,
           baselineVehicleCount
         ),
         unit: '台',
-        formatter: (value: number) => `${value}台`,
+        formatter: (value: number) => `${Math.round(value)}台`, // ✅ 整数表示
+        // ✅ 單獨判斷：車輛數減少時為改善
+        isImprovement: optimizedVehicleCount < baselineVehicleCount,
       },
     ];
   }, [
@@ -331,7 +337,7 @@ export const ComparisonTab: React.FC = () => {
       {/* 総合比較カード */}
       <Row gutter={16} style={{ marginBottom: 24 }}>
         {summaryStats.map((stat, index) => {
-          const isImprovement = stat.diff > 0;
+          const isImprovement = stat.isImprovement;
           const isNeutral = Math.abs(stat.diff) < 0.01;
 
           return (
@@ -340,7 +346,8 @@ export const ComparisonTab: React.FC = () => {
                 <Statistic
                   title={stat.title}
                   value={Math.abs(stat.diff)}
-                  precision={2}
+                  // ✅ 車両数は整数なので precision=0
+                  precision={stat.unit === '台' ? 0 : 2}
                   valueStyle={{
                     color: isNeutral
                       ? '#8c8c8c'
