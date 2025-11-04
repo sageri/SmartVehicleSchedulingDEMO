@@ -1,9 +1,10 @@
 """
 AI自動配車システムデモプロトタイプ - VRP最適化サービス
 
-OR-Toolsを使用してCVRPTW（容量制約付き時間窓VRP）を解きます。
+OR-Toolsを使用してCVRPTW(容量制約付き時間窓VRP)を解きます。
 """
 
+import logging
 import math
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -25,6 +26,9 @@ from app.schemas.optimization import (
 from app.services.baseline_service import BaselineService
 from app.services.metrics_service import MetricsService
 from app.config import settings
+
+# ロガー設定
+logger = logging.getLogger(__name__)
 
 
 def safe_divide(numerator: float, denominator: float, default_value: float = 0.0) -> float:
@@ -205,11 +209,11 @@ class VRPService:
         # 配送先の時間窓
         for delivery in deliveries:
             if delivery.time_window == "morning":
-                # 午前: 開始から4時間 (0-240分 = 8:00-12:00)
-                time_windows.append((0, 240))
+                # 午前: 開始から5時間 (0-300分 = 8:00-13:00) - Epic 005: 午後との重複を許可し解探索性向上
+                time_windows.append((0, 300))
             elif delivery.time_window == "afternoon":
-                # 午後: 5時間後から終了まで (300-600分 = 13:00-18:00)
-                time_windows.append((300, depot_duration))
+                # 午後: 4時間後から終了まで (240-600分 = 12:00-18:00) - Epic 005: 午前との重複を許可し解探索性向上
+                time_windows.append((240, depot_duration))
             else:
                 # 時間指定なし: 営業時間内ならいつでも
                 time_windows.append((0, depot_duration))
@@ -251,15 +255,24 @@ class VRPService:
 
         start_time = time_module.time()
 
+        # ログ: 最適化開始
+        logger.info(
+            f"VRP最適化開始: 拠点数={len(depots)}, 車両数={len(vehicles)}, "
+            f"配送先数={len(deliveries)}, タイムアウト={settings.VRP_TIME_LIMIT_SECONDS}秒"
+        )
+
         # 1. データモデル作成
+        logger.debug("データモデル作成中...")
         data = self._create_data_model(depots, vehicles, deliveries)
 
         # 2. ルーティングインデックスマネージャー作成
+        logger.debug("ルーティングインデックスマネージャー作成中...")
         manager = pywrapcp.RoutingIndexManager(
             len(data["distance_matrix"]), data["num_vehicles"], data["starts"], data["ends"]
         )
 
         # 3. ルーティングモデル作成
+        logger.debug("ルーティングモデル作成中...")
         routing = pywrapcp.RoutingModel(manager)
 
         # 4. 距離コールバック登録
@@ -319,7 +332,7 @@ class VRPService:
 
         routing.AddDimension(
             time_callback_index,
-            30,  # 待機時間許容（分）
+            60,  # 待機時間許容（分）- Epic 005: 解探索性向上のため30分→60分に拡大
             data["depot_duration"],  # 最大ルート時間（分）= 営業時間
             True,  # start cumul to zero（重要！）
             "Time",
@@ -334,23 +347,74 @@ class VRPService:
             if index >= 0:
                 time_dimension.CumulVar(index).SetRange(time_window[0], time_window[1])
 
+        # Epic 005: Multi-Depot対応 - 拠点制約追加（車両は自分の拠点の配送先のみ訪問可能）
+        logger.debug("拠点制約設定中...")
+        num_depots = data["num_depots"]
+        for delivery_idx, delivery in enumerate(deliveries):
+            node_idx = num_depots + delivery_idx  # 配送先ノードのインデックス
+            index = manager.NodeToIndex(node_idx)
+            if index >= 0:
+                # この配送先を訪問できる車両のリストを作成
+                allowed_vehicles = []
+                for vehicle_idx, vehicle in enumerate(vehicles):
+                    if vehicle.depot_id == delivery.depot_id:
+                        allowed_vehicles.append(vehicle_idx)
+
+                # 許可された車両のみがこのノードを訪問できるように設定
+                if allowed_vehicles:
+                    routing.SetAllowedVehiclesForIndex(allowed_vehicles, index)
+
         # 7. 探索パラメータ設定
+        logger.debug("探索パラメータ設定中...")
         search_parameters = pywrapcp.DefaultRoutingSearchParameters()
+        # Epic 005: Multi-Depot対応 - 並列挿入法で高速化
         search_parameters.first_solution_strategy = (
-            routing_enums_pb2.FirstSolutionStrategy.PATH_CHEAPEST_ARC
+            routing_enums_pb2.FirstSolutionStrategy.PARALLEL_CHEAPEST_INSERTION
         )
         search_parameters.local_search_metaheuristic = (
             routing_enums_pb2.LocalSearchMetaheuristic.GUIDED_LOCAL_SEARCH
         )
         search_parameters.time_limit.seconds = settings.VRP_TIME_LIMIT_SECONDS
+        # 解が見つかったら早期終了を許可
+        search_parameters.solution_limit = settings.VRP_SOLUTION_LIMIT
 
         # 8. 求解実行
+        logger.info(f"OR-Tools求解開始（最大{settings.VRP_TIME_LIMIT_SECONDS}秒）...")
         solution = routing.SolveWithParameters(search_parameters)
 
         computation_time = int((time_module.time() - start_time) * 1000)  # ms
+        logger.info(f"OR-Tools求解完了: 計算時間={computation_time}ms")
 
         if not solution:
-            raise ValueError("VRP求解に失敗しました。実行可能解が見つかりません。")
+            error_msg = (
+                f"VRP求解に失敗しました。実行可能解が見つかりません。"
+                f"拠点数={len(depots)}, 車両数={len(vehicles)}, 配送先数={len(deliveries)}, "
+                f"計算時間={computation_time}ms"
+            )
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+
+        # 解のステータスを確認
+        status = routing.status()
+        status_names = {
+            0: "ROUTING_NOT_SOLVED",
+            1: "ROUTING_SUCCESS",
+            2: "ROUTING_PARTIAL_SUCCESS_LOCAL_OPTIMUM_NOT_REACHED",
+            3: "ROUTING_FAIL",
+            4: "ROUTING_FAIL_TIMEOUT",
+            5: "ROUTING_INVALID",
+        }
+        status_name = status_names.get(status, f"UNKNOWN({status})")
+        logger.info(f"OR-Tools求解ステータス: {status_name}")
+
+        # タイムアウトの場合は警告ログを出力
+        if status == 4:  # ROUTING_FAIL_TIMEOUT
+            logger.warning(
+                f"最適化がタイムアウトしました（{settings.VRP_TIME_LIMIT_SECONDS}秒）。"
+                f"部分解が見つかった場合は返却します。"
+            )
+        elif status != 1:  # ROUTING_SUCCESS以外
+            logger.warning(f"最適解ではない可能性があります: {status_name}")
 
         # 9. ルート抽出（Epic 005: Multi-Depot対応）
         routes = self._extract_routes(
@@ -396,6 +460,19 @@ class VRPService:
             improvement_metrics=ImprovementMetrics(**improvement),
             created_at=datetime.now(timezone.utc).isoformat(),
         )
+
+        # ログ: 最適化完了サマリー
+        logger.info(
+            f"VRP最適化完了: ルート数={len(routes)}, "
+            f"割当配送先={len(deliveries) - len(unassigned_deliveries)}/{len(deliveries)}, "
+            f"未割当={len(unassigned_deliveries)}, "
+            f"総距離={result.total_distance:.2f}km, "
+            f"総コスト=¥{result.total_cost:.2f}, "
+            f"計算時間={computation_time}ms"
+        )
+
+        if unassigned_deliveries:
+            logger.warning(f"未割当配送先が存在します: {unassigned_deliveries}")
 
         return result
 

@@ -82,9 +82,6 @@ export const ControlPanel: React.FC = () => {
         >
           デモデータ作成
         </Button>
-        <Text type="secondary" style={{ fontSize: 12, marginTop: 8, display: 'block' }}>
-          拠点4件、車両10台、配送先100件を生成
-        </Text>
       </div>
 
       <Divider />
@@ -130,7 +127,7 @@ export const ControlPanel: React.FC = () => {
           VRP最適化実行
         </Button>
         <Text type="secondary" style={{ fontSize: 12, marginTop: 8, display: 'block' }}>
-          計算時間: 2秒-10分（データ規模による）
+          計算時間: 2秒-5分（データ規模による）
         </Text>
       </div>
 
@@ -165,13 +162,13 @@ export const ControlPanel: React.FC = () => {
             </Text>
             <br />
             <Text type="secondary" style={{ fontSize: 12 }}>
-              目標: 10:00 以内
+              目標: 5:00 以内
             </Text>
           </div>
           <Progress
-            percent={Math.min((elapsedSeconds / 600) * 100, 100)}
-            status={elapsedSeconds >= 600 ? 'exception' : 'active'}
-            strokeColor={elapsedSeconds >= 600 ? '#ff4d4f' : '#1890ff'}
+            percent={Math.min(Math.round((elapsedSeconds / 300) * 100), 100)}
+            status={elapsedSeconds >= 300 ? 'exception' : 'active'}
+            strokeColor={elapsedSeconds >= 300 ? '#ff4d4f' : '#1890ff'}
           />
           <Text type="secondary" style={{ fontSize: 12 }}>
             配送先数が多い場合、計算に数分かかることがあります

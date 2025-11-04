@@ -38,7 +38,7 @@ class Settings(BaseSettings):
     ]
 
     # VRP最適化設定
-    VRP_TIME_LIMIT_SECONDS: int = 600  # 最適化計算の最大時間（秒）- Epic 005: 100件配送先対応のため10分に拡張
+    VRP_TIME_LIMIT_SECONDS: int = 60   # 最適化計算の最大時間（秒）- Epic 005: 30件配送先対応のため1分に短縮
     VRP_SOLUTION_LIMIT: int = 1000     # 解探索の最大数
 
     # デモデータ設定

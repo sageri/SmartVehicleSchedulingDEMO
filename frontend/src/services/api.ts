@@ -26,7 +26,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000
 /** Axios Instance 作成 */
 const apiClient: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 60000, // 60秒タイムアウト
+  timeout: 120000, // 120秒（2分）タイムアウト - Epic 005: 最適化時間短縮に伴い調整（Backend VRP算法最大60秒）
   headers: {
     'Content-Type': 'application/json',
   },
@@ -148,7 +148,7 @@ export const api = {
 
   /**
    * VRP 最適化を実行（同期）
-   * 2-30秒で結果が返却される
+   * Epic 005: 大規模データ対応 - 処理時間は数秒～最大5分程度
    *
    * @param request 最適化リクエスト
    * @returns 最適化結果

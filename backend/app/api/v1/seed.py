@@ -19,7 +19,7 @@ from app.schemas.common import MessageResponse
 
 router = APIRouter()
 
-# Epic 005: 4拠点の定義
+# Epic 005: 2拠点の定義（Story 5.1.1: 陸地制約強化）
 DEPOT_CONFIGS = [
     {
         "id": "depot-tokyo",
@@ -29,45 +29,22 @@ DEPOT_CONFIGS = [
         "address": "東京都千代田区丸の内1-1-1",
     },
     {
-        "id": "depot-yokohama",
-        "name": "横浜デポ",
-        "latitude": 35.4657,
-        "longitude": 139.6220,
-        "address": "神奈川県横浜市西区みなとみらい1-1-1",
-    },
-    {
-        "id": "depot-kawaguchi",
-        "name": "川口デポ",
-        "latitude": 35.8078,
-        "longitude": 139.7242,
-        "address": "埼玉県川口市本町1-1-1",
-    },
-    {
-        "id": "depot-ichikawa",
-        "name": "市川デポ",
-        "latitude": 35.7226,
-        "longitude": 139.9306,
-        "address": "千葉県市川市市川1-1-1",
+        "id": "depot-saitama",
+        "name": "さいたま市デポ",
+        "latitude": 35.8617,
+        "longitude": 139.6455,
+        "address": "埼玉県さいたま市大宮区桜木町1-1-1",
     },
 ]
 
-# Epic 005: 車両配分（4拠点・10台）
+# Epic 005: 車両配分（2拠点・5台、Story 5.1.1: さいたま市対応）
 VEHICLE_ALLOCATION = {
     "depot-tokyo": {
         "2t": ["vehicle-101", "vehicle-102"],
-        "4t": ["vehicle-201", "vehicle-202"],
+        "4t": ["vehicle-201"],
     },
-    "depot-yokohama": {
-        "2t": ["vehicle-103"],
-        "4t": ["vehicle-203"],
-    },
-    "depot-kawaguchi": {
-        "2t": ["vehicle-104"],
-        "4t": ["vehicle-204"],
-    },
-    "depot-ichikawa": {
-        "2t": ["vehicle-105"],
-        "4t": ["vehicle-205"],
+    "depot-saitama": {
+        "2t": ["vehicle-103", "vehicle-104"],
     },
 }
 
@@ -87,11 +64,54 @@ VEHICLE_SPECS = {
     },
 }
 
-# Epic 005: データ生成設定
-DELIVERIES_PER_DEPOT = 25  # 各拠点周辺に25件ずつ配置
-MAX_DELIVERY_RADIUS_KM = 50.0  # 各拠点から最大50km圏内
+# Epic 005: データ生成設定（Story 5.1.1: 東京20件・さいたま10件に変更）
+DELIVERIES_PER_DEPOT = {
+    "depot-tokyo": 20,  # 東京デポ周辺20件
+    "depot-saitama": 10,  # さいたま市デポ周辺10件
+}
+MAX_DELIVERY_RADIUS_KM = 50.0  # 使用されない（固定リストのため）
 PACKAGE_COUNT_WEIGHTS = [0.5, 0.35, 0.15]  # 1枚:50%, 2枚:35%, 3枚:15%
-TIME_WINDOW_WEIGHTS = [0.3, 0.6, 0.1]  # 午前:30%, 午後:60%, 指定なし:10%
+TIME_WINDOW_WEIGHTS = [0.2, 0.3, 0.5]  # 午前:20%, 午後:30%, 指定なし:50% - Epic 005: VRP解探索性向上のため柔軟性を強化
+
+# Story 5.1.1: 固定配送先リスト（実際の地点を使用、ランダム生成を廃止）
+FIXED_DELIVERY_LOCATIONS = {
+    "depot-tokyo": [
+        # 東京都内の実際の地点（20件）
+        {"name": "新宿区役所", "latitude": 35.6938, "longitude": 139.7034},
+        {"name": "渋谷駅周辺", "latitude": 35.6580, "longitude": 139.7016},
+        {"name": "池袋サンシャインシティ", "latitude": 35.7295, "longitude": 139.7190},
+        {"name": "上野公園", "latitude": 35.7148, "longitude": 139.7740},
+        {"name": "品川駅周辺", "latitude": 35.6284, "longitude": 139.7387},
+        {"name": "六本木ヒルズ", "latitude": 35.6604, "longitude": 139.7292},
+        {"name": "秋葉原電気街", "latitude": 35.6983, "longitude": 139.7731},
+        {"name": "吉祥寺駅周辺", "latitude": 35.7032, "longitude": 139.5797},
+        {"name": "立川市役所", "latitude": 35.7143, "longitude": 139.4079},
+        {"name": "町田市役所", "latitude": 35.5474, "longitude": 139.4267},
+        {"name": "八王子駅周辺", "latitude": 35.6559, "longitude": 139.3388},
+        {"name": "三鷹市役所", "latitude": 35.6832, "longitude": 139.5597},
+        {"name": "調布市役所", "latitude": 35.6535, "longitude": 139.5419},
+        {"name": "府中市役所", "latitude": 35.6688, "longitude": 139.4777},
+        {"name": "多摩センター駅", "latitude": 35.6244, "longitude": 139.4285},
+        {"name": "錦糸町駅周辺", "latitude": 35.6969, "longitude": 139.8136},
+        {"name": "北千住駅周辺", "latitude": 35.7489, "longitude": 139.8048},
+        {"name": "赤羽駅周辺", "latitude": 35.7774, "longitude": 139.7209},
+        {"name": "国分寺市役所", "latitude": 35.7102, "longitude": 139.4620},
+        {"name": "小平市役所", "latitude": 35.7284, "longitude": 139.4774},
+    ],
+    "depot-saitama": [
+        # 埼玉県内の実際の地点（10件）
+        {"name": "さいたま新都心", "latitude": 35.8944, "longitude": 139.6306},
+        {"name": "浦和駅周辺", "latitude": 35.8617, "longitude": 139.6589},
+        {"name": "川口市役所", "latitude": 35.8078, "longitude": 139.7242},
+        {"name": "川越市役所", "latitude": 35.9253, "longitude": 139.4857},
+        {"name": "所沢駅周辺", "latitude": 35.7991, "longitude": 139.4689},
+        {"name": "越谷レイクタウン", "latitude": 35.8784, "longitude": 139.8233},
+        {"name": "春日部市役所", "latitude": 35.9757, "longitude": 139.7531},
+        {"name": "久喜市役所", "latitude": 36.0625, "longitude": 139.6669},
+        {"name": "蓮田市役所", "latitude": 35.9942, "longitude": 139.6603},
+        {"name": "上尾市役所", "latitude": 35.9771, "longitude": 139.5933},
+    ],
+}
 
 
 def calculate_destination_point(
@@ -168,35 +188,36 @@ def generate_deliveries_around_depot(
     seed: Optional[int] = None,
 ) -> List[Delivery]:
     """
-    指定した拠点の周辺にランダムに配送先を生成
+    指定した拠点の周辺に配送先を生成（Story 5.1.1: 固定リストを使用）
 
     Args:
         depot_config: 拠点の設定情報（id, name, latitude, longitude）
-        count: 生成する配送先数（例: 25件）
-        max_radius_km: 最大半径（例: 50km）
+        count: 生成する配送先数（例: 15件）
+        max_radius_km: 使用されない（固定リストのため）
         start_index: 配送先IDの開始インデックス
-        seed: ランダムシード値（Noneの場合は完全ランダム）
+        seed: ランダムシード値（伝票枚数・時間指定のランダム生成用）
 
     Returns:
         List[Delivery]: 生成された配送先リスト
     """
     deliveries = []
     depot_id = depot_config["id"]
-    depot_lat = depot_config["latitude"]
-    depot_lon = depot_config["longitude"]
 
-    for i in range(count):
-        # ランダムな距離と角度を生成（均等分布）
-        distance = random.uniform(5.0, max_radius_km)  # 最低5km以上離す
-        angle = random.uniform(0, 2 * math.pi)
+    # シード値を設定（伝票枚数・時間指定のランダム生成用）
+    if seed is not None:
+        random.seed(seed)
 
-        # 緯度・経度を計算（Haversine逆変換）
-        lat, lon = calculate_destination_point(depot_lat, depot_lon, distance, angle)
+    # 固定配送先リストを取得
+    fixed_locations = FIXED_DELIVERY_LOCATIONS.get(depot_id, [])
+
+    # 要求された件数分の配送先を生成（最大で固定リストの件数まで）
+    for i in range(min(count, len(fixed_locations))):
+        location = fixed_locations[i]
 
         # 伝票枚数を重み付きランダムで決定（1枚:50%, 2枚:35%, 3枚:15%）
         num_packages = random.choices([1, 2, 3], weights=PACKAGE_COUNT_WEIGHTS)[0]
 
-        # 時間指定を分布に従って決定（午前:30%, 午後:60%, 指定なし:10%）
+        # 時間指定を分布に従って決定（午前:20%, 午後:30%, 指定なし:50%）
         time_window = random.choices(
             ["morning", "afternoon", None], weights=TIME_WINDOW_WEIGHTS
         )[0]
@@ -207,15 +228,16 @@ def generate_deliveries_around_depot(
         deliveries.append(
             Delivery(
                 id=delivery_id,
-                customer_name=f"{depot_config['name']}周辺 配送先{i+1}",
-                latitude=lat,
-                longitude=lon,
-                address=f"緯度{lat:.4f}, 経度{lon:.4f}",
+                customer_name=location["name"],
+                latitude=location["latitude"],
+                longitude=location["longitude"],
+                address=f"{location['name']}",
                 package_count=num_packages,
                 weight=10.0 * num_packages,  # 1伝票あたり10kg
                 volume=0.5 * num_packages,  # 1伝票あたり0.5m³
                 time_window=time_window,
                 service_time=15,  # 15分固定
+                depot_id=depot_id,  # Epic 005: Multi-Depot対応 - 配送先と拠点を関連付け
             )
         )
 
@@ -299,7 +321,7 @@ def validate_data_distribution(
 @router.post("/demo-data", response_model=MessageResponse, status_code=201)
 def create_demo_data(db: Session = Depends(get_db), seed: Optional[int] = 42):
     """
-    デモデータを生成（Epic 005: 4拠点・100配送先・10台車両）
+    デモデータを生成（Epic 005: 2拠点・30配送先・5台車両）
 
     既存のデータを全て削除し、新しいデモデータを作成します。
 
@@ -323,7 +345,7 @@ def create_demo_data(db: Session = Depends(get_db), seed: Optional[int] = 42):
     vehicle_repo.delete_all()
     depot_repo.delete_all()
 
-    # ===== Phase 1: 拠点作成（4拠点） =====
+    # ===== Phase 1: 拠点作成（2拠点） =====
     depots = []
     for depot_config in DEPOT_CONFIGS:
         depot = Depot(
@@ -338,7 +360,7 @@ def create_demo_data(db: Session = Depends(get_db), seed: Optional[int] = 42):
         depot_repo.create(depot)
         depots.append(depot)
 
-    # ===== Phase 1 (Story 5.2): 車両作成（10台） =====
+    # ===== Phase 1 (Story 5.2): 車両作成（5台） =====
     vehicles = []
     for depot in depots:
         allocation = VEHICLE_ALLOCATION.get(depot.id, {})
@@ -375,17 +397,22 @@ def create_demo_data(db: Session = Depends(get_db), seed: Optional[int] = 42):
             vehicle_repo.create(vehicle)
             vehicles.append(vehicle)
 
-    # ===== Phase 2: 配送先作成（100件） =====
+    # ===== Phase 2: 配送先作成（30件、陸地制約対応） =====
     all_deliveries = []
-    for idx, depot_config in enumerate(DEPOT_CONFIGS):
+    cumulative_index = 0
+    for depot_config in DEPOT_CONFIGS:
+        depot_id = depot_config["id"]
+        count = DELIVERIES_PER_DEPOT[depot_id]
+
         depot_deliveries = generate_deliveries_around_depot(
             depot_config=depot_config,
-            count=DELIVERIES_PER_DEPOT,
+            count=count,
             max_radius_km=MAX_DELIVERY_RADIUS_KM,
-            start_index=idx * DELIVERIES_PER_DEPOT,
+            start_index=cumulative_index,
             seed=None,  # 各拠点で異なるランダム生成（グローバルseedで制御）
         )
         all_deliveries.extend(depot_deliveries)
+        cumulative_index += count
 
     for delivery in all_deliveries:
         delivery_repo.create(delivery)
@@ -403,6 +430,6 @@ def create_demo_data(db: Session = Depends(get_db), seed: Optional[int] = 42):
     )
 
     return MessageResponse(
-        message="デモデータを作成しました（Epic 005: 4拠点・100配送先・10台車両）",
+        message="デモデータを作成しました（Epic 005: 2拠点・30配送先・5台車両）",
         detail=detail,
     )

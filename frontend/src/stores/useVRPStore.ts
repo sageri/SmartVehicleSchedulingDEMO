@@ -196,9 +196,9 @@ export const useVRPStore = create<VRPStore>((set, get) => ({
       const response = await api.getDepots();
       set({ depots: response.depots });
 
-      // 拠点が1つの場合は自動選択
-      if (response.depots.length === 1) {
-        set({ selectedDepotIds: [response.depots[0].id] });
+      // Epic 005: 拠点が存在する場合は全選択（Multi-Depot VRP対応）
+      if (response.depots.length > 0) {
+        set({ selectedDepotIds: response.depots.map((d) => d.id) });
       }
     } catch (error) {
       set({

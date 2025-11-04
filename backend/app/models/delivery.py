@@ -2,7 +2,7 @@
 AI自動配車システムデモプロトタイプ - 配送先モデル
 """
 
-from sqlalchemy import Column, String, Float, Integer, DateTime
+from sqlalchemy import Column, String, Float, Integer, DateTime, ForeignKey
 from datetime import datetime
 
 from app.database import Base
@@ -25,6 +25,7 @@ class Delivery(Base):
         volume: 荷物容積（m³）
         time_window: 時間窓（"morning" | "afternoon" | null）
         service_time: サービス時間（分） - 配送に必要な時間
+        depot_id: 所属拠点ID（Epic 005: Multi-Depot対応 - 配送先と拠点の関連付け）
         created_at: 作成日時
         updated_at: 更新日時
     """
@@ -41,8 +42,9 @@ class Delivery(Base):
     volume = Column(Float, nullable=False)
     time_window = Column(String, nullable=True)  # "morning" | "afternoon" | null
     service_time = Column(Integer, nullable=False)
+    depot_id = Column(String, ForeignKey("depots.id"), nullable=False, index=True)  # Epic 005: Multi-Depot対応
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
     def __repr__(self) -> str:
-        return f"<Delivery(id={self.id}, customer={self.customer_name}, weight={self.weight}kg)>"
+        return f"<Delivery(id={self.id}, customer={self.customer_name}, depot={self.depot_id}, weight={self.weight}kg)>"

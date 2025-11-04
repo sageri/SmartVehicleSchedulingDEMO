@@ -131,10 +131,10 @@ const RouteTable: React.FC = () => {
     return depot?.name || depotId;
   };
 
-  // Story 5.3: 拠点別の色マッピング
+  // Story 5.1.1: 拠点別の色マッピング（さいたま市対応）
   const depotColorMap: Record<string, string> = {
     'depot-tokyo': 'blue',
-    'depot-yokohama': 'green',
+    'depot-saitama': 'green',
     'depot-kawaguchi': 'orange',
     'depot-ichikawa': 'purple',
   };
