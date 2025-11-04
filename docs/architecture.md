@@ -8,11 +8,11 @@
 
 **项目背景：**
 - **核心目标：** 验证AI自动配车功能对客户的价值，在实际运营条件下测试精度与性能
-- **业务规模：**
-  - 4个集货据点（20km范围内）
-  - 100个配送目的地（50km范围内）
-  - 10辆车辆（2t车×5，4t车×5）
-  - 时间窗口限制（上午30%，下午70%）
+- **业务规模（Epic 005最终规范）：**
+  - 2个集货据点（东京・さいたま市、20km范围内）
+  - 30个配送目的地（东京20件・さいたま市10件、50km范围内）
+  - 5辆车辆（2t车×4、4t车×1）
+  - 时间窗口限制（上午20%、下午30%、指定なし50%）
 - **验证重点：**
   1. 车辆装载优化（重量/容积）
   2. 运输成本计算（路线/距离/时间）
@@ -472,7 +472,7 @@ interface OptimizationResult {
 | `/api/v1/optimization/tasks/{task_id}` | GET | **获取优化任务状态** | **返回进度、阶段、结果（完成时）** |
 | `/api/v1/optimization/results/{id}` | GET | 获取优化结果 | 查看历史优化记录 |
 | `/api/v1/routes/{id}` | GET | 获取路线详情 | 单条路线详细信息 |
-| `/api/v1/seed/demo-data` | POST | 初始化演示数据 | 4据点+10车+100点 |
+| `/api/v1/seed/demo-data` | POST | 初始化演示数据 | 2拠点+5台车+30点（Epic 005）|
 
 ### 核心API详细说明
 
@@ -481,9 +481,9 @@ interface OptimizationResult {
 **Request Body:**
 ```json
 {
-  "depot_ids": ["depot-1", "depot-2", "depot-3", "depot-4"],
-  "vehicle_ids": ["vehicle-1", "vehicle-2", ..., "vehicle-10"],
-  "delivery_ids": ["delivery-1", ..., "delivery-100"],
+  "depot_ids": ["depot-tokyo", "depot-saitama"],
+  "vehicle_ids": ["vehicle-101", "vehicle-102", "vehicle-103", "vehicle-104", "vehicle-201"],
+  "delivery_ids": ["delivery-0001", ..., "delivery-0030"],
   "optimization_strategy": "cost",  // "distance" | "time" | "cost"
   "algorithm": "genetic"  // "greedy" | "genetic" | "exact"
 }
@@ -604,10 +604,8 @@ interface OptimizationResult {
 **Response (201 Created):**
 ```json
 {
-  "depots_created": 4,
-  "vehicles_created": 10,
-  "deliveries_created": 100,
-  "message": "演示数据初始化成功"
+  "message": "デモデータを作成しました（Epic 005: 2拠点・30配送先・5台車両）",
+  "detail": "拠点: 2件, 車両: 5台, 配送先: 30件 | 拠点間距離: 20.0km (Valid: true) | 配送先距離: 50.0km (Valid: true) | 伝票枚数分布: 1枚=50.0%, 2枚=35.0%, 3枚=15.0% | 時間指定分布: 午前=20.0%, 午後=30.0%, 指定なし=50.0%"
 }
 ```
 
