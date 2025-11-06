@@ -84,7 +84,7 @@ export const SelectionDetailDrawer: React.FC<SelectionDetailDrawerProps> = ({
     return { weight, volume };
   }, [selectedDeliveries]);
 
-  // 車両テーブルのカラム定義
+  // 车辆テーブルのカラム定義
   const vehicleColumns: ColumnsType<Vehicle> = [
     {
       title: '車両ID',
@@ -97,6 +97,25 @@ export const SelectionDetailDrawer: React.FC<SelectionDetailDrawerProps> = ({
       dataIndex: 'vehicle_type',
       key: 'type',
       width: 80,
+    },
+    {
+      title: '所属拠点',
+      dataIndex: 'depot_id',
+      key: 'depot',
+      width: 140,
+      render: (depotId: string) => {
+        // 拠点カラーマップ（Story 5.1.1: さいたま市対応）
+        const depotColorMap: Record<string, string> = {
+          'depot-tokyo': 'blue',
+          'depot-saitama': 'green',
+          'depot-kawaguchi': 'orange',
+          'depot-ichikawa': 'purple',
+        };
+        // 拠点名取得
+        const depot = depots.find((d) => d.id === depotId);
+        const depotName = depot ? depot.name : depotId;
+        return <Tag color={depotColorMap[depotId] || 'default'}>{depotName}</Tag>;
+      },
     },
     {
       title: '容量(重量)',
@@ -196,8 +215,6 @@ export const SelectionDetailDrawer: React.FC<SelectionDetailDrawerProps> = ({
     );
   }
 
-  const depot = selectedDepots[0]; // 単一拠点を前提
-
   return (
     <Drawer
       title="選択状態詳細"
@@ -207,20 +224,28 @@ export const SelectionDetailDrawer: React.FC<SelectionDetailDrawerProps> = ({
       onClose={onClose}
     >
       <Space direction="vertical" style={{ width: '100%' }} size="large">
-        {/* セクション 1: 拠点詳細 */}
+        {/* セクション 1: 拠点詳細（Epic 005: 複数拠点対応） */}
         <div>
           <Title level={5}>拠点情報（{selectedDepots.length}件選択中）</Title>
-          <Descriptions bordered column={1} size="small">
-            <Descriptions.Item label="ID">{depot.id}</Descriptions.Item>
-            <Descriptions.Item label="名称">{depot.name}</Descriptions.Item>
-            <Descriptions.Item label="住所">{depot.address}</Descriptions.Item>
-            <Descriptions.Item label="座標">
-              ({depot.latitude.toFixed(4)}, {depot.longitude.toFixed(4)})
-            </Descriptions.Item>
-            <Descriptions.Item label="営業時間">
-              {depot.operating_hours.start_time} - {depot.operating_hours.end_time}
-            </Descriptions.Item>
-          </Descriptions>
+          {selectedDepots.map((depot) => (
+            <Descriptions
+              key={depot.id}
+              bordered
+              column={1}
+              size="small"
+              style={{ marginBottom: selectedDepots.length > 1 ? 16 : 0 }}
+            >
+              <Descriptions.Item label="ID">{depot.id}</Descriptions.Item>
+              <Descriptions.Item label="名称">{depot.name}</Descriptions.Item>
+              <Descriptions.Item label="住所">{depot.address}</Descriptions.Item>
+              <Descriptions.Item label="座標">
+                ({depot.latitude.toFixed(4)}, {depot.longitude.toFixed(4)})
+              </Descriptions.Item>
+              <Descriptions.Item label="営業時間">
+                {depot.operating_hours.start_time} - {depot.operating_hours.end_time}
+              </Descriptions.Item>
+            </Descriptions>
+          ))}
         </div>
 
         {/* セクション 2: 車両詳細（テーブル形式） */}

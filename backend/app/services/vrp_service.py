@@ -1,9 +1,10 @@
 """
 AI自動配車システムデモプロトタイプ - VRP最適化サービス
 
-OR-Toolsを使用してCVRPTW（容量制約付き時間窓VRP）を解きます。
+OR-Toolsを使用してCVRPTW(容量制約付き時間窓VRP)を解きます。
 """
 
+import logging
 import math
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -25,6 +26,9 @@ from app.schemas.optimization import (
 from app.services.baseline_service import BaselineService
 from app.services.metrics_service import MetricsService
 from app.config import settings
+
+# ロガー設定
+logger = logging.getLogger(__name__)
 
 
 def safe_divide(numerator: float, denominator: float, default_value: float = 0.0) -> float:
@@ -99,19 +103,23 @@ class VRPService:
         self, depots: List[Depot], deliveries: List[Delivery]
     ) -> List[List[int]]:
         """
-        距離マトリクスを作成
+        距離マトリクスを作成（Epic 005: Multi-Depot対応）
 
         Args:
-            depots: 拠点リスト（最初の拠点のみ使用）
+            depots: 拠点リスト（全拠点）
             deliveries: 配送先リスト
 
         Returns:
             List[List[int]]: 距離マトリクス（m単位、整数）
-                - インデックス0: 拠点
-                - インデックス1~N: 配送先
+                - インデックス0~N-1: 拠点（N=拠点数）
+                - インデックスN~N+M-1: 配送先（M=配送先数）
+
+        Epic 005例: 4拠点 + 100配送先 = 104ノード
+                - インデックス0-3: 拠点（東京・横浜・川口・市川）
+                - インデックス4-103: 配送先
         """
-        # ロケーションリスト: [depot, delivery1, delivery2, ...]
-        locations = [(depots[0].latitude, depots[0].longitude)] + [
+        # ロケーションリスト: [depot1, depot2, ..., delivery1, delivery2, ...]
+        locations = [(d.latitude, d.longitude) for d in depots] + [
             (d.latitude, d.longitude) for d in deliveries
         ]
 
@@ -155,45 +163,57 @@ class VRPService:
         self, depots: List[Depot], vehicles: List[Vehicle], deliveries: List[Delivery]
     ) -> Dict[str, Any]:
         """
-        OR-Tools用のデータモデルを作成
+        OR-Tools用のデータモデルを作成（Epic 005: Multi-Depot対応）
 
         Args:
-            depots: 拠点リスト
+            depots: 拠点リスト（全拠点）
             vehicles: 車両リスト
             deliveries: 配送先リスト
 
         Returns:
             Dict[str, Any]: データモデル
+                - starts: 各車両の出発拠点インデックスリスト
+                - ends: 各車両の帰還拠点インデックスリスト
+                - depot_to_index: 拠点ID → インデックス のマッピング
         """
         distance_matrix = self._create_distance_matrix(depots, deliveries)
         time_matrix = self._create_time_matrix(distance_matrix)
 
-        # 需要（重量）- インデックス0は拠点なので0
-        demands = [0] + [int(d.weight) for d in deliveries]
+        # 拠点ID → インデックス のマッピング（Epic 005: Multi-Depot対応）
+        depot_to_index = {depot.id: i for i, depot in enumerate(depots)}
+        num_depots = len(depots)
 
-        # 車両容量
-        vehicle_capacities = [int(v.capacity_weight) for v in vehicles]
+        # 需要（重量）- 拠点はすべて0、配送先は実重量
+        demands_weight = [0] * num_depots + [int(d.weight) for d in deliveries]
 
-        # デポインデックス（全車両が同じ拠点から出発）
-        depot_index = 0
-        starts = [depot_index] * len(vehicles)
-        ends = [depot_index] * len(vehicles)
+        # 需要（容積）- 拠点はすべて0、配送先は実容積（Story 5.2: 双重容量約束対応）
+        demands_volume = [0] * num_depots + [int(d.volume * 100) for d in deliveries]  # m³ → リットル × 10
 
-        # 時間窓（分単位）
-        # OR-Toolsは0から累積するため、時間窓も0を基準とする
-        # 営業時間: 8:00-18:00 → 0-600分（10時間）
+        # 車両容量（重量）
+        vehicle_capacities_weight = [int(v.capacity_weight) for v in vehicles]
+
+        # 車両容量（容積）- Story 5.2: 双重容量約束対応
+        vehicle_capacities_volume = [int(v.capacity_volume * 100) for v in vehicles]  # m³ → リットル × 10
+
+        # Epic 005: Multi-Depot対応 - 各車両の出発・帰還拠点を設定
+        starts = [depot_to_index[v.depot_id] for v in vehicles]
+        ends = [depot_to_index[v.depot_id] for v in vehicles]
+
+        # 営業時間（全拠点が同じと仮定）
         depot_duration = (depots[0].operating_end_time.hour - depots[0].operating_start_time.hour) * 60
 
-        # Depot の時間窓（十分に広く設定）
-        time_windows = [(0, depot_duration)]  # 0-600分
+        # 時間窓（分単位）
+        # 拠点の時間窓（全拠点に設定）
+        time_windows = [(0, depot_duration)] * num_depots
 
+        # 配送先の時間窓
         for delivery in deliveries:
             if delivery.time_window == "morning":
-                # 午前: 開始から4時間 (0-240分 = 8:00-12:00)
-                time_windows.append((0, 240))
+                # 午前: 開始から5時間 (0-300分 = 8:00-13:00) - Epic 005: 午後との重複を許可し解探索性向上
+                time_windows.append((0, 300))
             elif delivery.time_window == "afternoon":
-                # 午後: 5時間後から終了まで (300-600分 = 13:00-18:00)
-                time_windows.append((300, depot_duration))
+                # 午後: 4時間後から終了まで (240-600分 = 12:00-18:00) - Epic 005: 午前との重複を許可し解探索性向上
+                time_windows.append((240, depot_duration))
             else:
                 # 時間指定なし: 営業時間内ならいつでも
                 time_windows.append((0, depot_duration))
@@ -201,14 +221,17 @@ class VRPService:
         return {
             "distance_matrix": distance_matrix,
             "time_matrix": time_matrix,
-            "demands": demands,
-            "vehicle_capacities": vehicle_capacities,
+            "demands_weight": demands_weight,                          # Story 5.2: 重量需要
+            "demands_volume": demands_volume,                          # Story 5.2: 容積需要
+            "vehicle_capacities_weight": vehicle_capacities_weight,    # Story 5.2: 重量容量
+            "vehicle_capacities_volume": vehicle_capacities_volume,    # Story 5.2: 容積容量
             "num_vehicles": len(vehicles),
-            "starts": starts,
-            "ends": ends,
+            "starts": starts,  # Multi-Depot: 各車両の出発拠点
+            "ends": ends,      # Multi-Depot: 各車両の帰還拠点
             "time_windows": time_windows,
-            "depot_index": depot_index,
-            "depot_duration": depot_duration,  # 追加
+            "depot_to_index": depot_to_index,  # Multi-Depot: 拠点マッピング
+            "num_depots": num_depots,          # Multi-Depot: 拠点数
+            "depot_duration": depot_duration,
         }
 
     def optimize(
@@ -232,15 +255,24 @@ class VRPService:
 
         start_time = time_module.time()
 
+        # ログ: 最適化開始
+        logger.info(
+            f"VRP最適化開始: 拠点数={len(depots)}, 車両数={len(vehicles)}, "
+            f"配送先数={len(deliveries)}, タイムアウト={settings.VRP_TIME_LIMIT_SECONDS}秒"
+        )
+
         # 1. データモデル作成
+        logger.debug("データモデル作成中...")
         data = self._create_data_model(depots, vehicles, deliveries)
 
         # 2. ルーティングインデックスマネージャー作成
+        logger.debug("ルーティングインデックスマネージャー作成中...")
         manager = pywrapcp.RoutingIndexManager(
             len(data["distance_matrix"]), data["num_vehicles"], data["starts"], data["ends"]
         )
 
         # 3. ルーティングモデル作成
+        logger.debug("ルーティングモデル作成中...")
         routing = pywrapcp.RoutingModel(manager)
 
         # 4. 距離コールバック登録
@@ -252,19 +284,36 @@ class VRPService:
         transit_callback_index = routing.RegisterTransitCallback(distance_callback)
         routing.SetArcCostEvaluatorOfAllVehicles(transit_callback_index)
 
-        # 5. 容量制約追加
-        def demand_callback(from_index: int) -> int:
-            from_node = manager.IndexToNode(from_index)
-            return data["demands"][from_node]
+        # 5. 容量制約追加（Story 5.2: 双重容量約束対応）
 
-        demand_callback_index = routing.RegisterUnaryTransitCallback(demand_callback)
+        # 5.1 重量容量制約
+        def demand_callback_weight(from_index: int) -> int:
+            from_node = manager.IndexToNode(from_index)
+            return data["demands_weight"][from_node]
+
+        demand_callback_weight_index = routing.RegisterUnaryTransitCallback(demand_callback_weight)
 
         routing.AddDimensionWithVehicleCapacity(
-            demand_callback_index,
+            demand_callback_weight_index,
             0,  # null capacity slack
-            data["vehicle_capacities"],
+            data["vehicle_capacities_weight"],
             True,  # start cumul to zero
-            "Capacity",
+            "CapacityWeight",
+        )
+
+        # 5.2 容積容量制約（Story 5.2: 新規追加）
+        def demand_callback_volume(from_index: int) -> int:
+            from_node = manager.IndexToNode(from_index)
+            return data["demands_volume"][from_node]
+
+        demand_callback_volume_index = routing.RegisterUnaryTransitCallback(demand_callback_volume)
+
+        routing.AddDimensionWithVehicleCapacity(
+            demand_callback_volume_index,
+            0,  # null capacity slack
+            data["vehicle_capacities_volume"],
+            True,  # start cumul to zero
+            "CapacityVolume",
         )
 
         # 6. 時間制約追加
@@ -273,8 +322,9 @@ class VRPService:
             to_node = manager.IndexToNode(to_index)
             travel_time = data["time_matrix"][from_node][to_node]
             # サービス時間を追加（配送先の場合）
-            if to_node > 0:  # 拠点以外
-                service_time = deliveries[to_node - 1].service_time
+            # Epic 005: Multi-Depot対応 - 拠点ノードをすべてスキップ
+            if to_node >= data["num_depots"]:  # 配送先ノードのみ
+                service_time = deliveries[to_node - data["num_depots"]].service_time
                 return travel_time + service_time
             return travel_time
 
@@ -282,7 +332,7 @@ class VRPService:
 
         routing.AddDimension(
             time_callback_index,
-            30,  # 待機時間許容（分）
+            60,  # 待機時間許容（分）- Epic 005: 解探索性向上のため30分→60分に拡大
             data["depot_duration"],  # 最大ルート時間（分）= 営業時間
             True,  # start cumul to zero（重要！）
             "Time",
@@ -297,27 +347,78 @@ class VRPService:
             if index >= 0:
                 time_dimension.CumulVar(index).SetRange(time_window[0], time_window[1])
 
+        # Epic 005: Multi-Depot対応 - 拠点制約追加（車両は自分の拠点の配送先のみ訪問可能）
+        logger.debug("拠点制約設定中...")
+        num_depots = data["num_depots"]
+        for delivery_idx, delivery in enumerate(deliveries):
+            node_idx = num_depots + delivery_idx  # 配送先ノードのインデックス
+            index = manager.NodeToIndex(node_idx)
+            if index >= 0:
+                # この配送先を訪問できる車両のリストを作成
+                allowed_vehicles = []
+                for vehicle_idx, vehicle in enumerate(vehicles):
+                    if vehicle.depot_id == delivery.depot_id:
+                        allowed_vehicles.append(vehicle_idx)
+
+                # 許可された車両のみがこのノードを訪問できるように設定
+                if allowed_vehicles:
+                    routing.SetAllowedVehiclesForIndex(allowed_vehicles, index)
+
         # 7. 探索パラメータ設定
+        logger.debug("探索パラメータ設定中...")
         search_parameters = pywrapcp.DefaultRoutingSearchParameters()
+        # Epic 005: Multi-Depot対応 - 並列挿入法で高速化
         search_parameters.first_solution_strategy = (
-            routing_enums_pb2.FirstSolutionStrategy.PATH_CHEAPEST_ARC
+            routing_enums_pb2.FirstSolutionStrategy.PARALLEL_CHEAPEST_INSERTION
         )
         search_parameters.local_search_metaheuristic = (
             routing_enums_pb2.LocalSearchMetaheuristic.GUIDED_LOCAL_SEARCH
         )
         search_parameters.time_limit.seconds = settings.VRP_TIME_LIMIT_SECONDS
+        # 解が見つかったら早期終了を許可
+        search_parameters.solution_limit = settings.VRP_SOLUTION_LIMIT
 
         # 8. 求解実行
+        logger.info(f"OR-Tools求解開始（最大{settings.VRP_TIME_LIMIT_SECONDS}秒）...")
         solution = routing.SolveWithParameters(search_parameters)
 
         computation_time = int((time_module.time() - start_time) * 1000)  # ms
+        logger.info(f"OR-Tools求解完了: 計算時間={computation_time}ms")
 
         if not solution:
-            raise ValueError("VRP求解に失敗しました。実行可能解が見つかりません。")
+            error_msg = (
+                f"VRP求解に失敗しました。実行可能解が見つかりません。"
+                f"拠点数={len(depots)}, 車両数={len(vehicles)}, 配送先数={len(deliveries)}, "
+                f"計算時間={computation_time}ms"
+            )
+            logger.error(error_msg)
+            raise ValueError(error_msg)
 
-        # 9. ルート抽出
+        # 解のステータスを確認
+        status = routing.status()
+        status_names = {
+            0: "ROUTING_NOT_SOLVED",
+            1: "ROUTING_SUCCESS",
+            2: "ROUTING_PARTIAL_SUCCESS_LOCAL_OPTIMUM_NOT_REACHED",
+            3: "ROUTING_FAIL",
+            4: "ROUTING_FAIL_TIMEOUT",
+            5: "ROUTING_INVALID",
+        }
+        status_name = status_names.get(status, f"UNKNOWN({status})")
+        logger.info(f"OR-Tools求解ステータス: {status_name}")
+
+        # タイムアウトの場合は警告ログを出力
+        if status == 4:  # ROUTING_FAIL_TIMEOUT
+            logger.warning(
+                f"最適化がタイムアウトしました（{settings.VRP_TIME_LIMIT_SECONDS}秒）。"
+                f"部分解が見つかった場合は返却します。"
+            )
+        elif status != 1:  # ROUTING_SUCCESS以外
+            logger.warning(f"最適解ではない可能性があります: {status_name}")
+
+        # 9. ルート抽出（Epic 005: Multi-Depot対応）
         routes = self._extract_routes(
-            solution, routing, manager, data, depots[0], vehicles, deliveries
+            solution, routing, manager, data, depots, vehicles, deliveries
         )
 
         # 10. 基線メトリクス計算
@@ -360,6 +461,19 @@ class VRPService:
             created_at=datetime.now(timezone.utc).isoformat(),
         )
 
+        # ログ: 最適化完了サマリー
+        logger.info(
+            f"VRP最適化完了: ルート数={len(routes)}, "
+            f"割当配送先={len(deliveries) - len(unassigned_deliveries)}/{len(deliveries)}, "
+            f"未割当={len(unassigned_deliveries)}, "
+            f"総距離={result.total_distance:.2f}km, "
+            f"総コスト=¥{result.total_cost:.2f}, "
+            f"計算時間={computation_time}ms"
+        )
+
+        if unassigned_deliveries:
+            logger.warning(f"未割当配送先が存在します: {unassigned_deliveries}")
+
         return result
 
     def _extract_routes(
@@ -368,19 +482,19 @@ class VRPService:
         routing,
         manager,
         data: Dict[str, Any],
-        depot: Depot,
+        depots: List[Depot],  # Epic 005: Multi-Depot対応 - 全拠点を受け取る
         vehicles: List[Vehicle],
         deliveries: List[Delivery],
     ) -> List[Route]:
         """
-        OR-Tools解からルート情報を抽出
+        OR-Tools解からルート情報を抽出（Epic 005: Multi-Depot対応）
 
         Args:
             solution: OR-Tools解
             routing: ルーティングモデル
             manager: インデックスマネージャー
             data: データモデル
-            depot: 拠点
+            depots: 拠点リスト（全拠点）
             vehicles: 車両リスト
             deliveries: 配送先リスト
 
@@ -389,6 +503,7 @@ class VRPService:
         """
         routes = []
         time_dimension = routing.GetDimensionOrDie("Time")
+        num_depots = data["num_depots"]
 
         for vehicle_idx in range(data["num_vehicles"]):
             index = routing.Start(vehicle_idx)
@@ -398,28 +513,33 @@ class VRPService:
             route_weight = 0.0
             route_volume = 0.0
 
+            # Epic 005: Multi-Depot対応 - 車両の所属拠点を取得
+            vehicle = vehicles[vehicle_idx]
+            vehicle_depot_idx = data["depot_to_index"][vehicle.depot_id]
+            vehicle_depot = depots[vehicle_depot_idx]
+
             sequence = 1
-            prev_node = data["depot_index"]
+            prev_node = vehicle_depot_idx  # Multi-Depot: 車両の出発拠点から開始
 
             while not routing.IsEnd(index):
                 node = manager.IndexToNode(index)
 
-                if node != data["depot_index"]:  # 拠点以外
-                    delivery = deliveries[node - 1]
+                # Epic 005: Multi-Depot対応 - 拠点ノードをすべてスキップ
+                if node >= num_depots:  # 配送先ノード（拠点以外）
+                    delivery = deliveries[node - num_depots]
 
                     # 前のノードからの距離・時間
                     distance_from_prev = data["distance_matrix"][prev_node][node] / 1000.0  # km
                     duration_from_prev = data["time_matrix"][prev_node][node]  # 分
 
                     # 到着・出発時刻
-                    # CumulVar(index) は離開時間（travel_time + service_time）
                     time_var = time_dimension.CumulVar(index)
                     departure_minutes = solution.Min(time_var)
                     arrival_minutes = departure_minutes - delivery.service_time
 
-                    # ISO 8601形式の時刻に変換（簡易実装）
+                    # ISO 8601形式の時刻に変換
                     base_time = datetime.now(timezone.utc).replace(
-                        hour=depot.operating_start_time.hour,
+                        hour=vehicle_depot.operating_start_time.hour,
                         minute=0,
                         second=0,
                         microsecond=0,
@@ -449,18 +569,16 @@ class VRPService:
                 prev_node = node
                 index = solution.Value(routing.NextVar(index))
 
-            # 最後のノードから拠点への帰還
-            if prev_node != data["depot_index"]:
-                distance_back = data["distance_matrix"][prev_node][data["depot_index"]] / 1000.0
-                duration_back = data["time_matrix"][prev_node][data["depot_index"]]
+            # 最後のノードから拠点への帰還（Epic 005: Multi-Depot対応）
+            if prev_node != vehicle_depot_idx and prev_node >= num_depots:
+                distance_back = data["distance_matrix"][prev_node][vehicle_depot_idx] / 1000.0
+                duration_back = data["time_matrix"][prev_node][vehicle_depot_idx]
                 route_distance += distance_back
                 route_duration += duration_back
 
             # 停車がない場合はルートを追加しない
             if not route_stops:
                 continue
-
-            vehicle = vehicles[vehicle_idx]
 
             # コスト計算
             route_cost = route_distance * vehicle.cost_per_km + (
@@ -475,7 +593,7 @@ class VRPService:
                 Route(
                     id=f"route-{uuid.uuid4()}",
                     vehicle_id=vehicle.id,
-                    depot_id=depot.id,
+                    depot_id=vehicle_depot.id,  # Epic 005: Multi-Depot対応 - 正しい拠点IDを設定
                     stops=route_stops,
                     total_distance=round(route_distance, 2),
                     total_duration=route_duration,

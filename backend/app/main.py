@@ -8,6 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.api.v1 import api_router
+from app.database import init_db
 
 # FastAPIアプリケーションインスタンス作成
 app = FastAPI(
@@ -17,6 +18,15 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
 )
+
+
+# アプリケーション起動時イベント：データベース初期化
+@app.on_event("startup")
+async def startup_event():
+    """
+    アプリケーション起動時にデータベーステーブルを作成
+    """
+    init_db()
 
 # CORS設定（フロントエンドからのアクセスを許可）
 app.add_middleware(
